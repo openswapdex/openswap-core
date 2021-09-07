@@ -3,11 +3,8 @@ pragma solidity =0.6.11;
 
 import './interfaces/IOSWAP_Governance.sol';
 import './interfaces/IOSWAP_VotingContract.sol';
+import './interfaces/IOSWAP_VotingExecutor.sol';
 import '../libraries/SafeMath.sol';
-
-interface IOSWAP_VotingExecutor {
-    function execute(bytes32[] calldata params) external;
-}
 
 contract OSWAP_VotingContract is IOSWAP_VotingContract {
     using SafeMath for uint256;

@@ -12,7 +12,7 @@ import "./interfaces/IOSWAP_HybridRouterRegistry.sol";
 import '../oracle/interfaces/IOSWAP_OracleFactory.sol';
 
 
-interface IOSWAP_Pair {
+interface IOSWAP_PairV1 {
     function getReserves() external view returns (uint112, uint112, uint32);
     function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data) external;
 }
@@ -107,7 +107,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
             address to = i < path.length - 2 ? pair[i + 1] : _to;
             uint256 typeCode = protocolTypeCode(pair[i]);
             if (typeCode == 1) {
-                IOSWAP_Pair(pair[i]).swap(
+                IOSWAP_PairV1(pair[i]).swap(
                     amount0Out, amount1Out, to, new bytes(0)
                 );
             } else if (typeCode == 2) {
@@ -242,7 +242,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
             uint256 typeCode = protocolTypeCode(pair[i]);
             address to = i < path.length - 2 ? pair[i + 1] : _to;
             if (typeCode == 1) {
-                IOSWAP_Pair _pair = IOSWAP_Pair(pair[i]);
+                IOSWAP_PairV1 _pair = IOSWAP_PairV1(pair[i]);
                 { // scope to avoid stack too deep errors
                 (uint reserve0, uint reserve1,) = _pair.getReserves();
                 (uint reserveInput, uint reserveOutput) = direction ? (reserve0, reserve1) : (reserve1, reserve0);
@@ -355,7 +355,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
     // fetches and sorts the reserves for a pair
     function getReserves(address pair, address tokenA, address tokenB) internal view returns (uint reserveA, uint reserveB) {
         (address token0,) = sortTokens(tokenA, tokenB);
-        (uint reserve0, uint reserve1,) = IOSWAP_Pair(pair).getReserves();
+        (uint reserve0, uint reserve1,) = IOSWAP_PairV1(pair).getReserves();
         (reserveA, reserveB) = tokenA == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
     }
     // given an input amount of an asset and pair reserves, returns the maximum output amount of the other asset
