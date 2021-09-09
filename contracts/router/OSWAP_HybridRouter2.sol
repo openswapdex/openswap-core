@@ -8,9 +8,8 @@ import '../libraries/SafeMath.sol';
 import '../libraries/Address.sol';
 import '../interfaces/IERC20.sol';
 import '../interfaces/IWETH.sol';
-import "./interfaces/IOSWAP_HybridRouterRegistry.sol";
+import './interfaces/IOSWAP_HybridRouterRegistry.sol';
 import '../oracle/interfaces/IOSWAP_OracleFactory.sol';
-
 
 interface IOSWAP_PairV1 {
     function getReserves() external view returns (uint112, uint112, uint32);
@@ -44,7 +43,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
     }
 
     modifier onlyEndUser() {
-        require((tx.origin == msg.sender && !Address.isContract(msg.sender)) || IOSWAP_OracleFactory(factory).isWhitelisted(msg.sender), "Not from end user or whitelisted");
+        require((tx.origin == msg.sender && !Address.isContract(msg.sender)) || IOSWAP_OracleFactory(factory).isWhitelisted(msg.sender), 'Not from end user or whitelisted');
         _;
     }
 
@@ -55,7 +54,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
     }
     
     receive() external payable {
-        require(msg.sender == WETH, 'Transfer failed'); // only accept ETH via fallback from the WETH contract
+        require(msg.sender == WETH, 'TRANSFER_FAILED'); // only accept ETH via fallback from the WETH contract
     }
 
     function getPathIn(address[] calldata pair, address tokenIn) public override view returns (address[] memory path) {
@@ -83,13 +82,13 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         }
     }
     function _findToken(address token0, address token1, address token) internal pure returns (address){
-        require(token0 != address(0) && token1 != address(0), "Pair not defined");
+        require(token0 != address(0) && token1 != address(0), 'PAIR_NOT_DEFINED');
         if (token0 == token)
             return token1;
         else if (token1 == token)
             return token0;
         else
-            revert('Pair not match');
+            revert('PAIR_NOT_MATCH');
     }
     
     // **** SWAP ****
@@ -133,7 +132,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         path = getPathIn(pair, tokenIn);
         bytes[] memory dataChunks;
         (amounts, dataChunks) = getAmountsOut(amountIn, path, pair, data);
-        require(amounts[amounts.length - 1] >= amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+        require(amounts[amounts.length - 1] >= amountOutMin, 'HybridRouter: INSUFFICIENT_OUTPUT_AMOUNT');
         TransferHelper.safeTransferFrom(
             path[0], msg.sender, pair[0], amounts[0]
         );
@@ -151,7 +150,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         path = getPathOut(pair, tokenOut);
         bytes[] memory dataChunks;
         (amounts, dataChunks) = getAmountsIn(amountOut, path, pair, data);
-        require(amounts[0] <= amountInMax, 'EXCESSIVE_INPUT_AMOUNT');
+        require(amounts[0] <= amountInMax, 'HybridRouter: EXCESSIVE_INPUT_AMOUNT');
         TransferHelper.safeTransferFrom(
             path[0], msg.sender, pair[0], amounts[0]
         );
@@ -168,9 +167,9 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         path = getPathIn(pair, WETH);
         bytes[] memory dataChunks;
         (amounts, dataChunks) = getAmountsOut(msg.value, path, pair, data);
-        require(amounts[amounts.length - 1] >= amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+        require(amounts[amounts.length - 1] >= amountOutMin, 'HybridRouter: INSUFFICIENT_OUTPUT_AMOUNT');
         IWETH(WETH).deposit{value: amounts[0]}();
-        require(IWETH(WETH).transfer(pair[0], amounts[0]), 'Transfer failed');
+        require(IWETH(WETH).transfer(pair[0], amounts[0]), 'TRANSFER_FAILED');
         _swap(amounts, path, to, pair, dataChunks);
     }
     function swapTokensForExactETH(uint amountOut, uint amountInMax, address[] calldata pair, address to, uint deadline, bytes calldata data)
@@ -183,7 +182,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         path = getPathOut(pair, WETH);
         bytes[] memory dataChunks;
         (amounts, dataChunks) = getAmountsIn(amountOut, path, pair, data);
-        require(amounts[0] <= amountInMax, 'EXCESSIVE_INPUT_AMOUNT');
+        require(amounts[0] <= amountInMax, 'HybridRouter: EXCESSIVE_INPUT_AMOUNT');
         TransferHelper.safeTransferFrom(
             path[0], msg.sender, pair[0], amounts[0]
         );
@@ -201,7 +200,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         path = getPathOut(pair, WETH);
         bytes[] memory dataChunks;
         (amounts, dataChunks) = getAmountsOut(amountIn, path, pair, data);
-        require(amounts[amounts.length - 1] >= amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+        require(amounts[amounts.length - 1] >= amountOutMin, 'HybridRouter: INSUFFICIENT_OUTPUT_AMOUNT');
         TransferHelper.safeTransferFrom(
             path[0], msg.sender, pair[0], amounts[0]
         );
@@ -220,9 +219,9 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         path = getPathIn(pair, WETH);
         bytes[] memory dataChunks;
         (amounts, dataChunks) = getAmountsIn(amountOut, path, pair, data);
-        require(amounts[0] <= msg.value, 'EXCESSIVE_INPUT_AMOUNT');
+        require(amounts[0] <= msg.value, 'HybridRouter: EXCESSIVE_INPUT_AMOUNT');
         IWETH(WETH).deposit{value: amounts[0]}();
-        require(IWETH(WETH).transfer(pair[0], amounts[0]), 'Transfer failed');
+        require(IWETH(WETH).transfer(pair[0], amounts[0]), 'TRANSFER_FAILED');
         _swap(amounts, path, to, pair, dataChunks);
         // refund dust eth, if any
         if (msg.value > amounts[0]) TransferHelper.safeTransferETH(msg.sender, msg.value - amounts[0]);
@@ -290,7 +289,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         _swapSupportingFeeOnTransferTokens(path, to, pair, data);
         require(
             IERC20(path[path.length - 1]).balanceOf(to).sub(balanceBefore) >= amountOutMin,
-            'INSUFFICIENT_OUTPUT_AMOUNT'
+            'HybridRouter: INSUFFICIENT_OUTPUT_AMOUNT'
         );
     }
     function swapExactETHForTokensSupportingFeeOnTransferTokens(
@@ -309,12 +308,12 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         address[] memory path = getPathIn(pair, WETH);
         uint amountIn = msg.value;
         IWETH(WETH).deposit{value: amountIn}();
-        require(IWETH(WETH).transfer(pair[0], amountIn), 'Transfer failed');
+        require(IWETH(WETH).transfer(pair[0], amountIn), 'TRANSFER_FAILED');
         uint balanceBefore = IERC20(path[path.length - 1]).balanceOf(to);
         _swapSupportingFeeOnTransferTokens(path, to, pair, data);
         require(
             IERC20(path[path.length - 1]).balanceOf(to).sub(balanceBefore) >= amountOutMin,
-            'INSUFFICIENT_OUTPUT_AMOUNT'
+            'HybridRouter: INSUFFICIENT_OUTPUT_AMOUNT'
         );
     }
     function swapExactTokensForETHSupportingFeeOnTransferTokens(
@@ -336,7 +335,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         );
         _swapSupportingFeeOnTransferTokens(path, address(this), pair, data);
         uint amountOut = IERC20(WETH).balanceOf(address(this));
-        require(amountOut >= amountOutMin, 'INSUFFICIENT_OUTPUT_AMOUNT');
+        require(amountOut >= amountOutMin, 'HybridRouter: INSUFFICIENT_OUTPUT_AMOUNT');
         IWETH(WETH).withdraw(amountOut);
         TransferHelper.safeTransferETH(to, amountOut);
     }
@@ -350,7 +349,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
     }
     function protocolTypeCode(address pair) internal view returns (uint256 typeCode) {
         (,,,typeCode) =  IOSWAP_HybridRouterRegistry(registry).getProtocolByPair(pair);
-        require(typeCode > 0 && typeCode < 4, "Pair not regconized");
+        require(typeCode > 0 && typeCode < 4, 'PAIR_NOT_REGCONIZED');
     }
     // fetches and sorts the reserves for a pair
     function getReserves(address pair, address tokenA, address tokenB) internal view returns (uint reserveA, uint reserveB) {
@@ -369,7 +368,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
     }
     // given an output amount of an asset and pair reserves, returns a required input amount of the other asset
     function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut, uint256 fee, uint256 feeBase) internal pure returns (uint amountIn) {
-        require(amountOut > 0, 'INSUFFICIENT_OUTPUT_AMOUNT');
+        require(amountOut > 0, 'HybridRouter: INSUFFICIENT_OUTPUT_AMOUNT');
         require(reserveIn > 0 && reserveOut > 0, 'INSUFFICIENT_LIQUIDITY');
         uint numerator = reserveIn.mul(amountOut).mul(feeBase);
         uint denominator = reserveOut.sub(amountOut).mul(fee);
