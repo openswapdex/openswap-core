@@ -5,7 +5,7 @@ import '../gov/interfaces/IOAXDEX_VotingExecutor.sol';
 import './interfaces/IOSWAP_OracleFactory.sol';
 import '../gov/interfaces/IOAXDEX_Governance.sol';
 
-contract OAXDEX_VotingExecutor2 is IOAXDEX_VotingExecutor {
+contract OSWAP_VotingExecutor2 is IOAXDEX_VotingExecutor {
 
     address public immutable governance;
     address public immutable factory;

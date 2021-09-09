@@ -6,7 +6,7 @@ import './interfaces/IOSWAP_RestrictedFactory.sol';
 import '../gov/interfaces/IOAXDEX_Governance.sol';
 import './interfaces/IOSWAP_ConfigStore.sol';
 
-contract OAXDEX_VotingExecutor4 is IOAXDEX_VotingExecutor {
+contract OSWAP_VotingExecutor4 is IOAXDEX_VotingExecutor {
 
     address public immutable governance;
     address public immutable factory;

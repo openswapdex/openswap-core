@@ -6,7 +6,7 @@ import './interfaces/IOSWAP_RangeFactory.sol';
 import '../gov/interfaces/IOAXDEX_Governance.sol';
 import '../router/interfaces/IOSWAP_HybridRouterRegistry.sol';
 
-contract OAXDEX_VotingExecutor3 is IOAXDEX_VotingExecutor {
+contract OSWAP_VotingExecutor3 is IOAXDEX_VotingExecutor {
 
     address public immutable governance;
     address public immutable factory;
