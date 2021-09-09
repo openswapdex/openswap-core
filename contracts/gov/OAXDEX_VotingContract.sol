@@ -4,10 +4,7 @@ pragma solidity =0.6.11;
 import './interfaces/IOAXDEX_Governance.sol';
 import './interfaces/IOAXDEX_VotingContract.sol';
 import '../libraries/SafeMath.sol';
-
-interface IOAXDEX_VotingExecutor {
-    function execute(bytes32[] calldata params) external;
-}
+import './interfaces/IOAXDEX_VotingExecutor.sol';
 
 contract OAXDEX_VotingContract is IOAXDEX_VotingContract {
     using SafeMath for uint256;
