@@ -3,7 +3,7 @@ pragma solidity =0.6.11;
 
 
 import './interfaces/IOSWAP_RestrictedFactory.sol';
-import '../gov/interfaces/IOSWAP_Governance.sol';
+import '../gov/interfaces/IOAXDEX_Governance.sol';
 import '../commons/interfaces/IOSWAP_PairBase.sol';
 import '../oracle/interfaces/IOSWAP_OracleAdaptor2.sol';
 import '../libraries/Ownable.sol';
@@ -12,7 +12,7 @@ import '../commons/OSWAP_PausableFactory.sol';
 contract OSWAP_RestrictedFactory is IOSWAP_RestrictedFactory, OSWAP_PausableFactory, Ownable { 
 
     modifier onlyVoting() {
-        require(IOSWAP_Governance(governance).isVotingExecutor(msg.sender), "Not from voting");
+        require(IOAXDEX_Governance(governance).isVotingExecutor(msg.sender), "Not from voting");
         _; 
     }
 

@@ -5,7 +5,7 @@ import './interfaces/IOSWAP_RestrictedLiquidityProvider.sol';
 import './interfaces/IOSWAP_RestrictedPair.sol';
 import './OSWAP_RestrictedPair.sol';
 import './interfaces/IOSWAP_RestrictedFactory.sol';
-import '../gov/interfaces/IOSWAP_Governance.sol';
+import '../gov/interfaces/IOAXDEX_Governance.sol';
 import '../libraries/TransferHelper.sol';
 import '../libraries/SafeMath.sol';
 import '../interfaces/IWETH.sol';
@@ -25,7 +25,7 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
     constructor(address _factory, address _WETH) public {
         factory = _factory;
         WETH = _WETH;
-        govToken = IOSWAP_Governance(IOSWAP_RestrictedFactory(_factory).governance()).govToken();
+        govToken = IOAXDEX_Governance(IOSWAP_RestrictedFactory(_factory).governance()).oaxToken();
     }
     
     receive() external payable {

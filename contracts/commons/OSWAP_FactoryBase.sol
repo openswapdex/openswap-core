@@ -2,13 +2,13 @@
 pragma solidity =0.6.11;
 
 import './interfaces/IOSWAP_FactoryBase.sol';
-import '../gov/interfaces/IOSWAP_Governance.sol';
+import '../gov/interfaces/IOAXDEX_Governance.sol';
 import './interfaces/IOSWAP_PairBase.sol';
 import './OSWAP_PausableFactory.sol';
 
 contract OSWAP_FactoryBase is IOSWAP_FactoryBase, OSWAP_PausableFactory {
     modifier onlyVoting() {
-        require(IOSWAP_Governance(governance).isVotingExecutor(msg.sender), "Not from voting");
+        require(IOAXDEX_Governance(governance).isVotingExecutor(msg.sender), "Not from voting");
         _; 
     }
 

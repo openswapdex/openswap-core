@@ -4,7 +4,7 @@ pragma solidity =0.6.11;
 import '../interfaces/IERC20.sol';
 import './interfaces/IOSWAP_OraclePair.sol';
 import './interfaces/IOSWAP_OracleFactory.sol';
-import '../gov/interfaces/IOSWAP_Governance.sol';
+import '../gov/interfaces/IOAXDEX_Governance.sol';
 import './interfaces/IOSWAP_OracleAdaptor.sol';
 import '../libraries/SafeMath.sol';
 import '../libraries/Address.sol';
@@ -56,7 +56,7 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
     constructor() public {
         address _governance = IOSWAP_OracleFactory(msg.sender).governance();
         governance = _governance;
-        govToken = IOSWAP_Governance(_governance).govToken();
+        govToken = IOAXDEX_Governance(_governance).oaxToken();
         oracleLiquidityProvider = IOSWAP_OracleFactory(msg.sender).oracleLiquidityProvider();
     }
 

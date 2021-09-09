@@ -2,14 +2,14 @@
 pragma solidity =0.6.11;
 
 import './interfaces/IOSWAP_PausableFactory.sol';
-import '../gov/interfaces/IOSWAP_Governance.sol';
+import '../gov/interfaces/IOAXDEX_Governance.sol';
 import './interfaces/IOSWAP_PausablePair.sol';
 
 contract OSWAP_PausableFactory is IOSWAP_PausableFactory {
 
     modifier onlyShutdownAdminOrVoting() {
-        require(IOSWAP_Governance(governance).admin() == msg.sender ||
-                IOSWAP_Governance(governance).isVotingExecutor(msg.sender), 
+        require(IOAXDEX_Governance(governance).admin() == msg.sender ||
+                IOAXDEX_Governance(governance).isVotingExecutor(msg.sender), 
                 "Not from shutdown admin or voting");
         _; 
     }

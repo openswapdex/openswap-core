@@ -3,7 +3,8 @@ pragma solidity =0.6.11;
 
 import "./interfaces/IOSWAP_HybridRouterRegistry.sol";
 import '../libraries/Ownable.sol';
-import '../gov/interfaces/IOSWAP_Governance.sol';
+import '../gov/interfaces/IOAXDEX_Governance.sol';
+import '../gov/interfaces/IOAXDEX_VotingExecutor.sol';
 
 interface IFactory {
     function getPair(address tokenA, address tokenB) external view returns (address pair);
@@ -21,10 +22,10 @@ interface IPair {
     function token1() external returns (address);
 }
 
-contract OSWAP_HybridRouterRegistry is Ownable, IOSWAP_HybridRouterRegistry {
+contract OSWAP_HybridRouterRegistry is Ownable, IOSWAP_HybridRouterRegistry, IOAXDEX_VotingExecutor {
 
     modifier onlyVoting() {
-        require(IOSWAP_Governance(governance).isVotingExecutor(msg.sender), "Not from voting");
+        require(IOAXDEX_Governance(governance).isVotingExecutor(msg.sender), "Not from voting");
         _; 
     }
 

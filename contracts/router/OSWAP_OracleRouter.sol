@@ -4,7 +4,7 @@ pragma solidity =0.6.11;
 import '../amm/interfaces/IOSWAP_Pair.sol';
 import '../oracle/interfaces/IOSWAP_OraclePair.sol';
 import '../oracle/interfaces/IOSWAP_OracleFactory.sol';
-import '../gov/interfaces/IOSWAP_Governance.sol';
+import '../gov/interfaces/IOAXDEX_Governance.sol';
 import '../libraries/TransferHelper.sol';
 
 import './interfaces/IOSWAP_OracleRouter.sol';

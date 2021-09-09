@@ -5,7 +5,7 @@ import './interfaces/IOSWAP_RangeLiquidityProvider.sol';
 import './interfaces/IOSWAP_RangePair.sol';
 import './OSWAP_RangePair.sol';
 import './interfaces/IOSWAP_RangeFactory.sol';
-import '../gov/interfaces/IOSWAP_Governance.sol';
+import '../gov/interfaces/IOAXDEX_Governance.sol';
 import '../libraries/TransferHelper.sol';
 import '../libraries/SafeMath.sol';
 import '../interfaces/IWETH.sol';
@@ -25,7 +25,7 @@ contract OSWAP_RangeLiquidityProvider is IOSWAP_RangeLiquidityProvider {
     constructor(address _factory, address _WETH) public {
         factory = _factory;
         WETH = _WETH;
-        govToken = IOSWAP_Governance(IOSWAP_RangeFactory(_factory).governance()).govToken();
+        govToken = IOAXDEX_Governance(IOSWAP_RangeFactory(_factory).governance()).oaxToken();
     }
     
     receive() external payable {

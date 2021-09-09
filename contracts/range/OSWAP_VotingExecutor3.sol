@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity =0.6.11;
 
-import '../gov/interfaces/IOSWAP_VotingExecutor.sol';
+import '../gov/interfaces/IOAXDEX_VotingExecutor.sol';
 import './interfaces/IOSWAP_RangeFactory.sol';
-import '../gov/interfaces/IOSWAP_Governance.sol';
+import '../gov/interfaces/IOAXDEX_Governance.sol';
 import '../router/interfaces/IOSWAP_HybridRouterRegistry.sol';
 
-contract OSWAP_VotingExecutor3 is IOSWAP_VotingExecutor {
+contract OAXDEX_VotingExecutor3 is IOAXDEX_VotingExecutor {
 
     address public immutable governance;
     address public immutable factory;
@@ -19,7 +19,7 @@ contract OSWAP_VotingExecutor3 is IOSWAP_VotingExecutor {
     }
 
     function execute(bytes32[] calldata params) external override {
-        require(IOSWAP_Governance(governance).isVotingContract(msg.sender), "Not from voting");
+        require(IOAXDEX_Governance(governance).isVotingContract(msg.sender), "Not from voting");
         require(params.length > 1, "Invalid length");
         bytes32 name = params[0];
         bytes32 param1 = params[1];

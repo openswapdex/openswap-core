@@ -4,7 +4,7 @@ pragma solidity =0.6.11;
 import './interfaces/IOSWAP_OracleLiquidityProvider.sol';
 import './interfaces/IOSWAP_OraclePair.sol';
 import './interfaces/IOSWAP_OracleFactory.sol';
-import '../gov/interfaces/IOSWAP_Governance.sol';
+import '../gov/interfaces/IOAXDEX_Governance.sol';
 import '../libraries/TransferHelper.sol';
 import '../libraries/SafeMath.sol';
 import '../interfaces/IWETH.sol';
@@ -24,7 +24,7 @@ contract OSWAP_OracleLiquidityProvider is IOSWAP_OracleLiquidityProvider {
     constructor(address _factory, address _WETH) public {
         factory = _factory;
         WETH = _WETH;
-        govToken = IOSWAP_Governance(IOSWAP_OracleFactory(_factory).governance()).govToken();
+        govToken = IOAXDEX_Governance(IOSWAP_OracleFactory(_factory).governance()).oaxToken();
     }
     
     receive() external payable {

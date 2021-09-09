@@ -7,7 +7,7 @@ import '../libraries/SafeMath.sol';
 import '../libraries/Address.sol';
 import './interfaces/IOSWAP_RangeFactory.sol';
 import '../oracle/interfaces/IOSWAP_OracleFactory.sol';
-import '../gov/interfaces/IOSWAP_Governance.sol';
+import '../gov/interfaces/IOAXDEX_Governance.sol';
 import '../oracle/interfaces/IOSWAP_OracleAdaptor.sol';
 import '../commons/OSWAP_PausablePair.sol';
 
@@ -56,7 +56,7 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
     constructor() public {
         (address _governance, address _rangeLiquidityProvider, address _oracleFactory) = IOSWAP_RangeFactory(msg.sender).getCreateAddresses();
         governance = _governance;
-        govToken = IOSWAP_Governance(_governance).govToken();
+        govToken = IOAXDEX_Governance(_governance).oaxToken();
         rangeLiquidityProvider = _rangeLiquidityProvider;
         oracleFactory = _oracleFactory;
 

@@ -12,7 +12,7 @@ import './interfaces/IOSWAP_ConfigStore.sol';
 import '../oracle/interfaces/IOSWAP_OracleAdaptor2.sol';
 import '../commons/OSWAP_PausablePair.sol';
 
-contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
+contract OSWAP_RestrictedPair2 is IOSWAP_RestrictedPair, OSWAP_PausablePair  {
     using SafeMath for uint256;
 
     uint256 constant FEE_BASE = 10 ** 5;
@@ -130,33 +130,74 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         (bool success, bytes memory data) = token.call(abi.encodeWithSelector(SELECTOR, to, value));
         require(success && (data.length == 0 || abi.decode(data, (bool))), 'TRANSFER_FAILED');
     }
-
-    function _getSwappedAmount(bool direction, uint256 amountIn, address trader, uint256 index, address oracle, uint256 tradeFee) internal view returns (uint256 amountOut, uint256 price, uint256 tradeFeeCollected) {
-        tradeFeeCollected = amountIn.mul(tradeFee).div(FEE_BASE);
-        amountIn = amountIn.sub(tradeFeeCollected);
-        (uint256 numerator, uint256 denominator) = IOSWAP_OracleAdaptor2(oracle).getRatio(direction ? token0 : token1, direction ? token1 : token0, amountIn, 0, trader, abi.encodePacked(index));
-        amountOut = amountIn.mul(numerator);
+    function _getMaxOut(bool direction, uint256 offerIdx, address trader) internal view returns (uint256 output) {
+        uint256 offerAmount =  offers[direction][offerIdx].amount;
+        uint256 alloc = traderAllocation[direction][offerIdx][trader];
+        output = alloc < offerAmount ? alloc : offerAmount;
+    }
+    function _getInputFromOutput(address trader, bool direction, address oracle, uint256 offerIdx, uint256 amountOut) internal view returns (uint256 amountIn, uint256 numerator, uint256 denominator) {
+        bytes memory data2 = abi.encodePacked(offerIdx);
+        (numerator, denominator) = IOSWAP_OracleAdaptor2(oracle).getRatio(direction ? token0 : token1, direction ? token0 : token1, 0, amountOut, trader, data2);
+        amountIn = amountOut.mul(denominator);
         if (scaler > 1)
-            amountOut = (direction == scaleDirection) ? amountOut.mul(scaler) : amountOut.div(scaler);
-        amountOut = amountOut.div(denominator);
+            amountIn = (direction != scaleDirection) ? amountIn.mul(scaler) : amountIn.div(scaler);
+        amountIn = amountIn.div(numerator);
+    }
+    function _oneOutput(uint256 amountIn, address trader, bool direction, uint256 offerIdx, address oracle, uint256 tradeFee) internal view returns (uint256 amountInPlusFee, uint256 output, uint256 tradeFeeCollected, uint256 price) {
+        output = _getMaxOut(direction, offerIdx, trader);
+
+        uint256 numerator; uint256 denominator;
+        (amountInPlusFee, numerator, denominator) = _getInputFromOutput(trader, direction, oracle, offerIdx, output);
+
+        tradeFeeCollected = amountInPlusFee.mul(tradeFee).div(FEE_BASE.sub(tradeFee));
+        amountInPlusFee = amountInPlusFee.add(tradeFeeCollected);
+
+        // check if offer enough to cover whole input, recalculate output if not
+        if (amountIn < amountInPlusFee) {
+            amountInPlusFee = amountIn;
+            tradeFeeCollected = amountIn.mul(tradeFee).div(FEE_BASE);
+            output = amountIn.sub(tradeFeeCollected).mul(numerator);
+            if (scaler > 1)
+                output = (direction == scaleDirection) ? output.mul(scaler) : output.div(scaler);
+            output = output.div(denominator);
+        }
         price = numerator.mul(WEI).div(denominator);
     }
     function getAmountOut(address tokenIn, uint256 amountIn, address trader, bytes calldata /*data*/) external view override returns (uint256 amountOut) {
         require(amountIn > 0, 'INSUFFICIENT_INPUT_AMOUNT');
-        (uint256[] memory list, uint256[] memory amount) = _decodeData(0x84);
+        (uint256[] memory list) = _decodeData(0x84);
         bool direction = token0 == tokenIn;
         (address oracle, uint256 tradeFee, )  = IOSWAP_RestrictedFactory(factory).checkAndGetOracleSwapParams(token0, token1);
-        uint256 _amount;
-        for (uint256 i = 0 ; i < list.length ; i++) {
-            uint256 offerIdx = list[i];
+        uint256 offerIdx;
+        uint256 length = list.length;
+        for (uint256 i = 0 ; i < length ; i++) {
+            offerIdx = list[i];
             require(offerIdx <= counter[direction], "Offer not exist");
-            _amount = amount[i].mul(amountIn).div(1e18);
-            (_amount,,) = _getSwappedAmount(direction, _amount, trader, offerIdx, oracle, tradeFee);
-            amountOut = amountOut.add(_amount);
+            require(isApprovedTrader[direction][offerIdx][trader], "Not a approved trader");
+            (uint256 amountInPlusFee, uint256 offerOut,,) = _oneOutput(amountIn, trader, direction, offerIdx, oracle, tradeFee);
+            amountIn = amountIn.sub(amountInPlusFee);
+            amountOut = amountOut.add(offerOut);
         }
+        require(amountIn == 0, "Amount exceeds available fund");
     }
-    function getAmountIn(address /*tokenOut*/, uint256 /*amountOut*/, address /*trader*/, bytes calldata /*data*/) external view override returns (uint256 /*amountIn*/) {
-        revert("Not supported");
+    function getAmountIn(address tokenOut, uint256 amountOut, address trader, bytes calldata /*data*/) external view override returns (uint256 amountIn) {
+        require(amountOut > 0, 'INSUFFICIENT_OUTPUT_AMOUNT');
+        (uint256[] memory list) = _decodeData(0x84);
+        bool direction = tokenOut == token1;
+        (address oracle, uint256 tradeFee,)  = IOSWAP_RestrictedFactory(factory).checkAndGetOracleSwapParams(token0, token1);
+        uint256 length = list.length;
+        uint256 offerIdx;
+        for (uint256 i  ; i < length ; i++) {
+            offerIdx = list[i];
+            require(offerIdx <= counter[direction], "Offer not exist");
+            require(isApprovedTrader[direction][offerIdx][trader], "Not a approved trader");
+            uint256 tmpInt/*=maxOut*/ = _getMaxOut(direction, offerIdx, trader);
+            (tmpInt/*=offerOut*/, amountOut) = (amountOut > tmpInt) ? (tmpInt, amountOut.sub(tmpInt)) : (amountOut, 0);
+            (tmpInt/*=offerIn*/,,) = _getInputFromOutput(trader, direction, oracle, offerIdx, tmpInt/*=offerOut*/);
+            amountIn = amountIn.add(tmpInt/*=offerIn*/);
+        }
+        amountIn = amountIn.mul(FEE_BASE).div(FEE_BASE.sub(tradeFee)).add(1);
+        require(amountOut == 0, "Amount exceeds available fund");
     }
 
     function getProviderOfferIndexLength(address provider, bool direction) external view override returns (uint256 length) {
@@ -300,6 +341,7 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         _safeTransfer(tokenB, msg.sender, receivingOut); // optimistically transfer tokens
         _sync();
     }
+
     function removeAllLiquidity(address provider) external override lock returns (uint256 amount0, uint256 amount1) {
         (amount0, amount1) = _removeAllLiquidity1D(provider, false);
         (uint256 amount2, uint256 amount3) = _removeAllLiquidity1D(provider, true);
@@ -325,6 +367,7 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         _safeTransfer(token1, msg.sender, amount1); // optimistically transfer tokens
         _sync();
     }
+
     function _removeLiquidity(address provider, bool direction, uint256 index, uint256 amountOut, uint256 receivingOut) internal {
         require(index > 0, "Provider liquidity not found");
 
@@ -392,6 +435,7 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         if (!IOSWAP_OracleFactory(whitelistFactory).isWhitelisted(msg.sender)) {
             require(tx.origin == msg.sender && !Address.isContract(msg.sender) && trader == msg.sender, "Invalid trader");
         }
+
         require(isLive, "PAUSED");
         uint256 amount0In = IERC20(token0).balanceOf(address(this)).sub(lastToken0Balance);
         uint256 amount1In = IERC20(token1).balanceOf(address(this)).sub(lastToken1Balance);
@@ -415,34 +459,30 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         _sync();
     }
 
-    function _decodeData(uint256 offset) internal pure returns (uint256[] memory list, uint256[] memory amount) {
+    function _decodeData(uint256 offset) internal pure returns (uint256[] memory list) {
         uint256 dataRead;
         require(msg.data.length >= offset.add(0x60), "Invalid offer list");
         assembly {
             let count := calldataload(add(offset, 0x20))
             let size := mul(count, 0x20)
 
-            if lt(calldatasize(), add(offset, add(mul(2, size), 0x20))) { // offset + 0x20 + count * 0x20
+            if lt(calldatasize(), add(offset, add(size, 0x20))) { // offset + 0x20 + count * 0x20
                 revert(0, 0)
             }
             let mark := mload(0x40)
-            mstore(0x40, add(mark, mul(2, add(size, 0x20)))) // malloc
+            mstore(0x40, add(mark, add(size, 0x20))) // malloc
             mstore(mark, count) // array length
             calldatacopy(add(mark, 0x20), add(offset, 0x40), size) // copy data to list
             list := mark
             mark := add(mark, add(0x20, size))
-            // offset := add(offset, size)
-            mstore(mark, count) // array length
-            calldatacopy(add(mark, 0x20), add(add(offset, 0x40), size), size) // copy data to list
-            amount := mark
-            dataRead := add(mul(2, size), 0x20)
+            dataRead := add(size, 0x20)
         }
         require(offset.add(dataRead).add(0x20) == msg.data.length, "Invalid data length");
         require(list.length > 0, "Invalid offer list");
     }
 
     function _swap2(bool direction, address trader, uint256 offerIdx, uint256 amountIn, address oracle, uint256[4] memory fee/*uint256 tradeFee, uint256 protocolFee, uint256 feePerOrder, uint256 feePerTrander*/) internal 
-        returns (uint256 amountOut, uint256 tradeFeeCollected, uint256 protocolFeeCollected) 
+        returns (uint256 remainIn, uint256 amountOut, uint256 tradeFeeCollected, uint256 protocolFeeCollected) 
     {
         require(offerIdx <= counter[direction], "Offer not exist");
         Offer storage offer = offers[direction][offerIdx];
@@ -463,48 +503,45 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         require(block.timestamp <= offer.expire, "Offer expired");
         }
 
+        uint256 amountInPlusFee;
         uint256 price;
-        uint256 amountInWithProtocolFee;
-        (amountOut, price, tradeFeeCollected) = _getSwappedAmount(direction, amountIn, trader, offerIdx, oracle, fee[0]);
+        (amountInPlusFee, amountOut, tradeFeeCollected, price) = _oneOutput(amountIn, trader, direction, offerIdx, oracle, fee[0]);
 
-        if (fee[1] == 0) {
-            amountInWithProtocolFee = amountIn;
-        } else {
+        // stack too deep, use remainIn as alloc
+        remainIn = traderAllocation[direction][offerIdx][trader];
+        traderAllocation[direction][offerIdx][trader] = remainIn.sub(amountOut);
+
+        remainIn = amountIn.sub(amountInPlusFee);
+
+        if (fee[1] != 0) {
             protocolFeeCollected = tradeFeeCollected.mul(fee[1]).div(FEE_BASE);
-            amountInWithProtocolFee = amountIn.sub(protocolFeeCollected);
+            amountInPlusFee/*minusProtoFee*/ = amountInPlusFee.sub(protocolFeeCollected);
         }
 
-        // check allocation
-        uint256 alloc = traderAllocation[direction][offerIdx][trader];
-        require(amountOut <= alloc, "Amount exceeded allocation");
-        require(amountOut <= offer.amount, "Amount exceeds available fund");
-
         offer.amount = offer.amount.sub(amountOut);
-        offer.receiving = offer.receiving.add(amountInWithProtocolFee);
-        traderAllocation[direction][offerIdx][trader] = alloc.sub(amountOut);
+        offer.receiving = offer.receiving.add(amountInPlusFee/*minusProtoFee*/);
 
-        emit SwappedOneOffer(offer.provider, direction, offerIdx, price, amountOut, amountInWithProtocolFee);
+        emit SwappedOneOffer(offer.provider, direction, offerIdx, price, amountOut, amountInPlusFee/*minusProtoFee*/);
     }
     function _swap(bool direction, uint256 amountIn, address trader/*, bytes calldata data*/) internal returns (uint256 totalOut, uint256 totalProtocolFeeCollected) {
-        (uint256[] memory idxList, uint256[] memory amountList) = _decodeData(0xa4);
+        (uint256[] memory list) = _decodeData(0xa4);
+        uint256 remainIn = amountIn;
         address oracle;
         uint256[4] memory fee;
         (oracle, fee[0], fee[1])  = IOSWAP_RestrictedFactory(factory).checkAndGetOracleSwapParams(token0, token1);
         fee[2] = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_ORDER));
         fee[3] = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_TRADER));
 
-        uint256 totalIn;
         uint256 totalTradeFeeCollected;
-        for (uint256 index = 0 ; index < idxList.length ; index++) {
-            totalIn = totalIn.add(amountList[index]);
-            uint256[3] memory amount;
-            uint256 thisIn = amountList[index].mul(amountIn).div(1e18);
-            (amount[0], amount[1], amount[2])/*(uint256 amountOut, uint256 tradeFeeCollected, uint256 protocolFeeCollected)*/ = _swap2(direction, trader, idxList[index], thisIn, oracle, fee/*tradeFee, protocolFee, feePerOrder, feePerTrader*/);
-            totalOut = totalOut.add(amount[0]);
-            totalTradeFeeCollected = totalTradeFeeCollected.add(amount[1]);
-            totalProtocolFeeCollected = totalProtocolFeeCollected.add(amount[2]);
+        uint256 amountOut; uint256 tradeFeeCollected; uint256 protocolFeeCollected;
+        for (uint256 index = 0 ; index < list.length ; index++) {
+            (remainIn, amountOut, tradeFeeCollected, protocolFeeCollected) = _swap2(direction, trader, list[index], remainIn, oracle, fee);
+            totalOut = totalOut.add(amountOut);
+            totalTradeFeeCollected = totalTradeFeeCollected.add(tradeFeeCollected);
+            totalProtocolFeeCollected = totalProtocolFeeCollected.add(protocolFeeCollected);
         }
-        require(totalIn <= 1e18, "Invalid input");
+        require(remainIn == 0, "Amount exceeds available fund");
+
         emit Swap(trader, direction, amountIn, totalOut, totalTradeFeeCollected, totalProtocolFeeCollected);
     }
 

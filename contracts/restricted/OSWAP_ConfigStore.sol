@@ -2,12 +2,12 @@
 pragma solidity =0.6.11;
 
 import "./interfaces/IOSWAP_ConfigStore.sol";
-import '../gov/interfaces/IOSWAP_Governance.sol';
+import '../gov/interfaces/IOAXDEX_Governance.sol';
 
 contract OSWAP_ConfigStore is IOSWAP_ConfigStore {
 
     modifier onlyVoting() {
-        require(IOSWAP_Governance(governance).isVotingExecutor(msg.sender), "Not from voting");
+        require(IOAXDEX_Governance(governance).isVotingExecutor(msg.sender), "Not from voting");
         _; 
     }
 
