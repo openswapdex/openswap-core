@@ -246,7 +246,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
                 (uint reserve0, uint reserve1,) = _pair.getReserves();
                 (uint reserveInput, uint reserveOutput) = direction ? (reserve0, reserve1) : (reserve1, reserve0);
                 amountInput = amountInput.sub(reserveInput);
-                (,,,uint256 fee,uint256 feeBase) = IOSWAP_HybridRouterRegistry(registry).pairs(address(_pair));
+                (uint256 fee,uint256 feeBase) = IOSWAP_HybridRouterRegistry(registry).getFee(address(_pair));
                 amountOutput = getAmountOut(amountInput, reserveInput, reserveOutput, fee, feeBase);
                 }
                 (uint amount0Out, uint amount1Out) = direction ? (uint(0), amountOutput) : (amountOutput, uint(0));
@@ -348,7 +348,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         require(token0 != address(0), 'ZERO_ADDRESS');
     }
     function protocolTypeCode(address pair) internal view returns (uint256 typeCode) {
-        (,,,typeCode) =  IOSWAP_HybridRouterRegistry(registry).getProtocolByPair(pair);
+        typeCode =  IOSWAP_HybridRouterRegistry(registry).getTypeCode(pair);
         require(typeCode > 0 && typeCode < 4, 'PAIR_NOT_REGCONIZED');
     }
     // fetches and sorts the reserves for a pair
@@ -417,7 +417,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
             uint256 typeCode = protocolTypeCode(pair[i]);
             if (typeCode == 1) {
                 (uint reserveIn, uint reserveOut) = getReserves(pair[i], path[i], path[i + 1]);
-                (,,,uint256 fee,uint256 feeBase) = IOSWAP_HybridRouterRegistry(registry).pairs(pair[i]);
+                (uint256 fee,uint256 feeBase) = IOSWAP_HybridRouterRegistry(registry).getFee(pair[i]);
                 amounts[i + 1] = getAmountOut(amounts[i], reserveIn, reserveOut, fee, feeBase);
             } else {
                 bytes memory next;
@@ -445,7 +445,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
             uint256 typeCode = protocolTypeCode(pair[i - 1]);
             if (typeCode == 1) {
                 (uint reserveIn, uint reserveOut) = getReserves(pair[i - 1], path[i - 1], path[i]);
-                (,,,uint256 fee,uint256 feeBase) = IOSWAP_HybridRouterRegistry(registry).pairs(pair[i - 1]);
+                (uint256 fee,uint256 feeBase) = IOSWAP_HybridRouterRegistry(registry).getFee(pair[i - 1]);
                 amounts[i - 1] = getAmountIn(amounts[i], reserveIn, reserveOut, fee, feeBase);
             } else {
                 bytes memory next;
