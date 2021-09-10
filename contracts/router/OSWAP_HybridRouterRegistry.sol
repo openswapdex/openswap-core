@@ -59,12 +59,15 @@ contract OSWAP_HybridRouterRegistry is Ownable, IOSWAP_HybridRouterRegistry, IOA
         if (params.length == 6) {
             if (name == "registerProtocol") {
                 _registerProtocol(params[1], address(bytes20(params[2])), uint256(params[3]), uint256(params[4]), uint256(params[5]));
-            } else {
-                revert("Unknown command");
+                return;
             }
-        } else {
-            revert("Invalid parameters");
+        } else if (params.length == 7) {
+            if (name == "registerPair") {
+                _registerPair(address(bytes20(params[1])), address(bytes20(params[2])), address(bytes20(params[3])), uint256(params[4]), uint256(params[5]), uint256(params[6]));
+                return;
+            }
         }
+        revert("Invalid parameters");
     }
     function registerProtocol(bytes32 _name, address _factory, uint256 _fee, uint256 _feeBase, uint256 _typeCode) external override onlyVoting {
         _registerProtocol(_name, _factory, _fee, _feeBase, _typeCode);
@@ -86,6 +89,9 @@ contract OSWAP_HybridRouterRegistry is Ownable, IOSWAP_HybridRouterRegistry, IOA
 
     // register individual pair
     function registerPair(address token0, address token1, address pairAddress, uint256 fee, uint256 feeBase, uint256 typeCode) external override onlyVoting {
+        _registerPair(token0, token1, pairAddress, fee, feeBase, typeCode);
+    }
+    function _registerPair(address token0, address token1, address pairAddress, uint256 fee, uint256 feeBase, uint256 typeCode) internal {
         require(token0 > address(0), "Invalid token address");
         require(token0 < token1, "Invalid token order");
         require(pairAddress > address(0), "Invalid pair address");
