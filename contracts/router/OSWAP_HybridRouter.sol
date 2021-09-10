@@ -23,11 +23,6 @@ contract OSWAP_HybridRouter is IOSWAP_HybridRouter {
         _;
     }
 
-    modifier onlyEndUser() {
-        require((tx.origin == msg.sender && !Address.isContract(msg.sender)) || IOSWAP_OracleFactory(oracleFactory).isWhitelisted(msg.sender), "Not from end user or whitelisted");
-        _;
-    }
-
     constructor(address _oracleFactory, address _WETH) public {
         oracleFactory = _oracleFactory;
         WETH = _WETH;
@@ -39,7 +34,7 @@ contract OSWAP_HybridRouter is IOSWAP_HybridRouter {
 
     // **** SWAP ****
     // requires the initial amount to have already been sent to the first pair
-    function _swap(uint[] memory amounts, address[] memory path, address _to, address[] calldata pair, bytes calldata data) internal virtual onlyEndUser {
+    function _swap(uint[] memory amounts, address[] memory path, address _to, address[] calldata pair, bytes calldata data) internal virtual {
         for (uint i; i < path.length - 1; i++) {
             (address input, address output) = (path[i], path[i + 1]);
             (address token0,) = sortTokens(input, output);
@@ -154,7 +149,7 @@ contract OSWAP_HybridRouter is IOSWAP_HybridRouter {
 
     // **** SWAP (supporting fee-on-transfer tokens) ****
     // requires the initial amount to have already been sent to the first pair
-    function _swapSupportingFeeOnTransferTokens(address[] memory path, address _to, address[] calldata pair, uint24[] calldata fee, bytes memory /*data*/) internal virtual onlyEndUser {
+    function _swapSupportingFeeOnTransferTokens(address[] memory path, address _to, address[] calldata pair, uint24[] calldata fee, bytes memory /*data*/) internal virtual {
         for (uint i; i < path.length - 1; i++) {
             // (address input, address output) = (path[i], path[i + 1]);
             /* (address token0,) = */ sortTokens(path[i], path[i + 1]);
@@ -269,7 +264,7 @@ contract OSWAP_HybridRouter is IOSWAP_HybridRouter {
                 hex'ff',
                 oracleFactory,
                 keccak256(abi.encodePacked(token0, token1)),
-                /*oracle*/hex'3b5912337537e787aa9c386643d60d6a53d67929dca85177fdda16a680102c23'
+                /*oracle*/hex'20686cf332dcf651899b24984a7a17e29601d277943561d9cfdc7a3772402788'
             ))));
     }
     function isOraclePair(address target, address tokenA, address tokenB) internal view returns (bool) {
