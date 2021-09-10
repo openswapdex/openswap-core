@@ -110,7 +110,6 @@ contract OSWAP_HybridRouterRegistry is Ownable, IOSWAP_HybridRouterRegistry, IOA
         emit CustomPairRegister(pairAddress, fee, feeBase, typeCode);
     }
 
-
     // register pair with registered protocol
     function registerPairByIndex(address _factory, uint256 index) external override {
         require(protocols[_factory].typeCode > 0, "Protocol not regconized");
@@ -195,15 +194,16 @@ contract OSWAP_HybridRouterRegistry is Ownable, IOSWAP_HybridRouterRegistry, IOA
             token1[i] = pair.token1;
         }
     }
+    // caller needs to check if typeCode = 0 (or other invalid value)
     function getTypeCode(address pairAddress) external override view returns (uint256 typeCode) {
         address factory = pairs[pairAddress].factory;
         if (factory != address(0)) {
             typeCode = protocols[factory].typeCode;
         } else {
             typeCode = customPairs[pairAddress].typeCode;
-            // require(typeCode != 0, "Invalid pair");
         }
     }
+    // if getFee() is called without prior getTypeCode(), caller needs to check if feeBase = 0
     function getFee(address pairAddress) external override view returns (uint256 fee, uint256 feeBase) {
         address factory = pairs[pairAddress].factory;
         if (factory != address(0)) {
@@ -211,7 +211,6 @@ contract OSWAP_HybridRouterRegistry is Ownable, IOSWAP_HybridRouterRegistry, IOA
             feeBase = protocols[factory].feeBase;
         } else {
             feeBase = customPairs[pairAddress].feeBase;
-            // require(feeBase != 0, "Invalid pair");
             fee = customPairs[pairAddress].fee;
         }
     }
