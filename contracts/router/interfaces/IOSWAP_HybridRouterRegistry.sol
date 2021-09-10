@@ -55,6 +55,8 @@ interface IOSWAP_HybridRouterRegistry {
     function registerPairsByTokens(address _factory, address[] calldata _token0, address[] calldata _token1) external;
     function registerPairsByTokensV3(address _factory, address[] calldata _token0, address[] calldata _token1, uint256[] calldata pairIndex) external;
     function registerPairByAddress(address _factory, address pairAddress) external;
+    function registerPairsByAddress(address _factory, address[] memory pairAddress) external;
+    function registerPairsByAddress2(address[] memory _factory, address[] memory pairAddress) external;
 
     function getPairTokens(address[] calldata pairAddress) external view returns (address[] memory token0, address[] memory token1);
     function getTypeCode(address pairAddress) external view returns (uint256 typeCode);
