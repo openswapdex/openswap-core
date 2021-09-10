@@ -35,20 +35,13 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
 
     address public immutable override registry;
     address public immutable override WETH;
-    address public immutable factory;
 
     modifier ensure(uint deadline) {
         require(deadline >= block.timestamp, 'EXPIRED');
         _;
     }
 
-    modifier onlyEndUser() {
-        require((tx.origin == msg.sender && !Address.isContract(msg.sender)) || IOSWAP_OracleFactory(factory).isWhitelisted(msg.sender), 'Not from end user or whitelisted');
-        _;
-    }
-
-    constructor(address _factory, address _registry, address _WETH) public {
-        factory = _factory;
+    constructor(address _registry, address _WETH) public {
         registry = _registry;
         WETH = _WETH;
     }
@@ -93,7 +86,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
     
     // **** SWAP ****
     // requires the initial amount to have already been sent to the first pair
-    function _swap(uint[] memory amounts, address[] memory path, address _to, address[] memory pair, bytes[] memory dataChunks) internal virtual onlyEndUser {
+    function _swap(uint[] memory amounts, address[] memory path, address _to, address[] memory pair, bytes[] memory dataChunks) internal virtual {
         for (uint i; i < path.length - 1; i++) {
             bool direction;
             {
@@ -229,7 +222,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
 
     // **** SWAP (supporting fee-on-transfer tokens) ****
     // requires the initial amount to have already been sent to the first pair
-    function _swapSupportingFeeOnTransferTokens(address[] memory path, address _to, address[] memory pair, bytes memory data) internal virtual onlyEndUser {
+    function _swapSupportingFeeOnTransferTokens(address[] memory path, address _to, address[] memory pair, bytes memory data) internal virtual {
         uint256 offset;
         for (uint i; i < path.length - 1; i++) {
             // (address input, address output) = (path[i], path[i + 1]);
