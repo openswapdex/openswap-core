@@ -14,6 +14,7 @@ interface IOSWAP_OracleFactory is IOSWAP_FactoryBase {
 
     function tradeFee() external view returns (uint256);
     function protocolFee() external view returns (uint256);
+    function feePerDelegator() external view returns (uint256);
     function protocolFeeTo() external view returns (address);
 
     function securityScoreOracle() external view returns (address);
@@ -34,6 +35,7 @@ interface IOSWAP_OracleFactory is IOSWAP_FactoryBase {
     function addOldOracleToNewPair(address from, address to, address oracle) external;
     function setTradeFee(uint256) external;
     function setProtocolFee(uint256) external;
+    function setFeePerDelegator(uint256 _feePerDelegator) external;
     function setProtocolFeeTo(address) external;
     function setSecurityScoreOracle(address, uint256) external;
     function setMinLotSize(address token, uint256 _minLotSize) external;

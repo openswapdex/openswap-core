@@ -33,6 +33,8 @@ contract OSWAP_VotingExecutor2 is IOAXDEX_VotingExecutor {
                 IOSWAP_OracleFactory(factory).setTradeFee(uint256(param1));
             } else if (name == "setProtocolFee") {
                 IOSWAP_OracleFactory(factory).setProtocolFee(uint256(param1));
+            } else if (name == "setFeePerDelegator") {
+                IOSWAP_OracleFactory(factory).setFeePerDelegator(uint256(param1));
             } else if (name == "setProtocolFeeTo") {
                 IOSWAP_OracleFactory(factory).setProtocolFeeTo(address(bytes20(param1)));
             } else if (name == "setLive") {

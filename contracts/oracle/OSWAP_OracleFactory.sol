@@ -15,6 +15,7 @@ contract OSWAP_OracleFactory is OSWAP_FactoryBase, IOSWAP_OracleFactory, Ownable
 
     uint256 public override tradeFee;
     uint256 public override protocolFee;
+    uint256 public override feePerDelegator;
     address public override protocolFeeTo;
 
     address public override securityScoreOracle;
@@ -30,7 +31,7 @@ contract OSWAP_OracleFactory is OSWAP_FactoryBase, IOSWAP_OracleFactory, Ownable
     mapping (address => uint256) public override whitelistedInv;
     mapping (address => bool) public override isWhitelisted; 
 
-    constructor(address _governance, address _pairCreator, uint256 _tradeFee, uint256 _protocolFee, address _protocolFeeTo) public 
+    constructor(address _governance, address _pairCreator, uint256 _tradeFee, uint256 _protocolFee, uint256 _feePerDelegator, address _protocolFeeTo) public 
         OSWAP_FactoryBase(_governance, _pairCreator)
     {
         require(_tradeFee <= FEE_BASE, "INVALID_TRADE_FEE");
@@ -38,10 +39,12 @@ contract OSWAP_OracleFactory is OSWAP_FactoryBase, IOSWAP_OracleFactory, Ownable
 
         tradeFee = _tradeFee;
         protocolFee = _protocolFee;
+        feePerDelegator = _feePerDelegator;
         protocolFeeTo = _protocolFeeTo;
 
         emit ParamSet("tradeFee", bytes32(tradeFee));
         emit ParamSet("protocolFee", bytes32(protocolFee));
+        emit ParamSet("feePerDelegator", bytes32(feePerDelegator));
         emit ParamSet("protocolFeeTo", bytes32(bytes20(protocolFeeTo)));
     }
     // only set at deployment time
@@ -85,6 +88,10 @@ contract OSWAP_OracleFactory is OSWAP_FactoryBase, IOSWAP_OracleFactory, Ownable
         require(_protocolFee <= FEE_BASE, "INVALID_PROTOCOL_FEE");
         protocolFee = _protocolFee;
         emit ParamSet("protocolFee", bytes32(protocolFee));
+    }
+    function setFeePerDelegator(uint256 _feePerDelegator) external override onlyVoting {
+        feePerDelegator = _feePerDelegator;
+        emit ParamSet("feePerDelegator", bytes32(feePerDelegator));
     }
     function setProtocolFeeTo(address _protocolFeeTo) external override onlyVoting {
         protocolFeeTo = _protocolFeeTo;

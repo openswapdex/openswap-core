@@ -31,12 +31,18 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
         require((tx.origin == msg.sender && !Address.isContract(msg.sender)) || IOSWAP_OracleFactory(factory).isWhitelisted(msg.sender), "Not from user or whitelisted");
         _;
     }
+    modifier onlyDelegator(address provider) {
+        require(provider == msg.sender || isDelegator(provider, msg.sender), "Not a delegator");
+        _;
+    }
 
     uint256 public override counter;
     mapping (bool => uint256) public override first;
     mapping (bool => uint256) public override queueSize;
     mapping (bool => mapping (uint256 => Offer)) public override offers;
     mapping (address => uint256) public override providerOfferIndex;
+    mapping (address => address[]) public override delegators;
+    mapping (address => mapping (address => uint256)) public override delegatorsIdx;
 
     address public override immutable governance;
     address public override immutable oracleLiquidityProvider;
@@ -52,6 +58,7 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
     uint256 public override protocolFeeBalance0;
     uint256 public override protocolFeeBalance1;
     uint256 public override stakeBalance;
+    uint256 public override feeBalance;
 
     constructor() public {
         address _governance = IOSWAP_OracleFactory(msg.sender).governance();
@@ -131,6 +138,46 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
             amountIn = (direction != scaleDirection) ? amountIn.mul(scaler) : amountIn.div(scaler);
         amountIn = amountIn.div(numerator).add(1);
         amountIn = amountIn.mul(FEE_BASE).div(FEE_BASE.sub(tradeFee)).add(1);
+    }
+
+    // delegrator
+    function delegatorsLength(address provider) external view override returns (uint256) {
+        return delegators[provider].length;
+    }
+    function getDelegators(address provider, uint256 start, uint256 length) external view override returns (address[] memory providerDelegators) {
+        if (start.add(length) > delegators[provider].length) {
+            length = delegators[provider].length - start;
+        }
+        providerDelegators = new address[](length);
+        for (uint256 i = 0 ; i < length ; i++) {
+            providerDelegators[i] = delegators[provider][i.add(start)];
+        }
+    }
+    function isDelegator(address provider, address delegator) public view override returns (bool) {
+        return delegators[provider].length > 0 && delegators[provider][delegatorsIdx[provider][delegator]] == delegator;
+    }
+    function addDelegator(address delegator) external override {
+        address provider = msg.sender;
+        require(!isDelegator(provider, delegator), "already a delegator");
+        delegatorsIdx[provider][delegator] = delegators[provider].length;
+        delegators[provider].push(delegator);
+        uint256 feePerDelegator = IOSWAP_OracleFactory(factory).feePerDelegator();
+        feeBalance = feeBalance.add(feePerDelegator);
+        IERC20(govToken).transferFrom(msg.sender, address(this), feePerDelegator);
+        emit AddDelegator(provider, delegator);
+    }
+    function removeDelegator(address delegator) external override {
+        address provider = msg.sender;
+        uint256 idx = delegatorsIdx[provider][delegator];
+        uint256 length = delegators[provider].length;
+        require(length > 0 && delegators[provider][idx] == delegator, "not a delegator");
+        if (idx < length - 1) {
+            address tmp = delegators[provider][idx] = delegators[provider][length - 1];
+            delegatorsIdx[provider][tmp] = idx;
+        }
+        delete delegatorsIdx[provider][delegator];
+        delegators[provider].pop();
+        emit RemoveDelegator(provider, delegator);
     }
 
     function getQueue(bool direction, uint256 start, uint256 end) external view override returns (uint256[] memory index, address[] memory provider, uint256[] memory amount, uint256[] memory staked, uint256[] memory expire) {
@@ -370,6 +417,17 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
 
         emit Replenish(provider, direction, amountIn, expire);
     }
+    function pauseOffer(address provider, bool direction) external override onlyDelegator(provider) {
+        uint256 index = providerOfferIndex[provider];
+        _dequeue(direction, index);
+        emit DelegatorPauseOffer(msg.sender, provider, direction);
+    }
+    function resumeOffer(address provider, bool direction, uint256 afterIndex) external override onlyDelegator(provider) {
+        uint256 index = providerOfferIndex[provider];
+        Offer storage offer = offers[direction][index];
+        _enqueue(direction, index, offer.staked, afterIndex, offer.amount, offer.expire);
+        emit DelegatorResumeOffer(msg.sender, provider, direction);
+    }
     function removeLiquidity(address provider, bool direction, uint256 unstake, uint256 afterIndex, uint256 amountOut, uint256 reserveOut, uint256 expire) external override lock {
         require(msg.sender == oracleLiquidityProvider || msg.sender == provider, "Not from router or owner");
         require(expire > block.timestamp, "Already expired");
@@ -410,7 +468,6 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
 
         _sync();
     }
-
     function removeAllLiquidity(address provider) external override lock returns (uint256 amount0, uint256 amount1, uint256 staked) {
         require(msg.sender == oracleLiquidityProvider || msg.sender == provider, "Not from router or owner");
         uint256 staked0;
@@ -459,6 +516,7 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
             limit--;
         }
     }
+
     function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external override lock onlyEndUser {
         require(isLive, "PAUSED");
         uint256 amount0In;
@@ -481,7 +539,6 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
 
         _sync();
     }
-
     function _swap(address to, bool direction, uint256 amountIn, uint256 _amountOut, bytes calldata data) internal returns (uint256 amountOut, uint256 protocolFeeCollected) {
         uint256 amountInMinusProtocolFee;
         {
@@ -544,17 +601,20 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
         _sync();
     }
     function _sync() internal {
-        lastGovBalance = IERC20(govToken).balanceOf(address(this));
-        lastToken0Balance = IERC20(token0).balanceOf(address(this));
-        lastToken1Balance = IERC20(token1).balanceOf(address(this));
+        (lastGovBalance, lastToken0Balance, lastToken1Balance) = getBalances();
     }
 
     function redeemProtocolFee() external override lock {
         address protocolFeeTo = IOSWAP_OracleFactory(factory).protocolFeeTo();
-        _safeTransfer(token0, protocolFeeTo, protocolFeeBalance0); // optimistically transfer tokens
-        _safeTransfer(token1, protocolFeeTo, protocolFeeBalance1); // optimistically transfer tokens
+        uint256 _protocolFeeBalance0 = protocolFeeBalance0;
+        uint256 _protocolFeeBalance1 = protocolFeeBalance1;
+        uint256 _feeBalance = feeBalance;
+        _safeTransfer(token0, protocolFeeTo, _protocolFeeBalance0); // optimistically transfer tokens
+        _safeTransfer(token1, protocolFeeTo, _protocolFeeBalance1); // optimistically transfer tokens
+        _safeTransfer(govToken, protocolFeeTo, _feeBalance); // optimistically transfer tokens
         protocolFeeBalance0 = 0;
         protocolFeeBalance1 = 0;
+        feeBalance = 0;
         _sync();
     }
 }
