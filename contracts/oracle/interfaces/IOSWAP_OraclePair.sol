@@ -66,7 +66,7 @@ interface IOSWAP_OraclePair is IOSWAP_PausablePair {
     function getAmountOut(address tokenIn, uint256 amountIn, bytes calldata data) external view returns (uint256 amountOut);
     function getAmountIn(address tokenOut, uint256 amountOut, bytes calldata data) external view returns (uint256 amountIn);
 
-    function setDelegator(address _delegator) external;
+    function setDelegator(address _delegator, uint256 fee) external;
 
     function getQueue(bool direction, uint256 start, uint256 end) external view returns (uint256[] memory index, address[] memory provider, uint256[] memory amount, uint256[] memory staked, uint256[] memory expire);
     function getQueueFromIndex(bool direction, uint256 from, uint256 count) external view returns (uint256[] memory index, address[] memory provider, uint256[] memory amount, uint256[] memory staked, uint256[] memory expire);

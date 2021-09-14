@@ -143,12 +143,13 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
         amountIn = amountIn.mul(FEE_BASE).div(FEE_BASE.sub(tradeFee)).add(1);
     }
 
-    function setDelegator(address _delegator) external override {
+    function setDelegator(address _delegator, uint256 fee) external override {
         address provider = msg.sender;
         delegator[provider] = _delegator;
         if (_delegator != address(0)) {
             uint256 feePerDelegator = IOSWAP_OracleFactory(factory).feePerDelegator();
             if (feePerDelegator > 0) {
+                require(fee == feePerDelegator, "Fee Mismatch");
                 feeBalance = feeBalance.add(feePerDelegator);
                 _safeTransferFrom(govToken, provider, address(this), feePerDelegator);
             }
