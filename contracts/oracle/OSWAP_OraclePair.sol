@@ -148,8 +148,10 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
         delegator[provider] = _delegator;
         if (_delegator != address(0)) {
             uint256 feePerDelegator = IOSWAP_OracleFactory(factory).feePerDelegator();
-            feeBalance = feeBalance.add(feePerDelegator);
-            _safeTransferFrom(govToken, provider, address(this), feePerDelegator);
+            if (feePerDelegator > 0) {
+                feeBalance = feeBalance.add(feePerDelegator);
+                _safeTransferFrom(govToken, provider, address(this), feePerDelegator);
+            }
         }
         emit SetDelegator(provider, _delegator);
     }
