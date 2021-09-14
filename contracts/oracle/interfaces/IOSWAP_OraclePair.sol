@@ -22,8 +22,7 @@ interface IOSWAP_OraclePair is IOSWAP_PausablePair {
     event RemoveLiquidity(address indexed provider, bool indexed direction, uint256 unstake, uint256 amountOut, uint256 reserveOut, uint256 expire);
     event Swap(address indexed to, bool indexed direction, uint256 price, uint256 amountIn, uint256 amountOut, uint256 tradeFee, uint256 protocolFee);
     event SwappedOneProvider(address indexed provider, bool indexed direction, uint256 amountOut, uint256 amountIn);
-    event AddDelegator(address indexed provider, address indexed delegator);
-    event RemoveDelegator(address indexed provider, address indexed delegator);
+    event SetDelegator(address indexed provider, address delegator);
     event DelegatorPauseOffer(address indexed delegator, address indexed provider, bool indexed direction);
     event DelegatorResumeOffer(address indexed delegator, address indexed provider, bool indexed direction);
 
@@ -42,8 +41,7 @@ interface IOSWAP_OraclePair is IOSWAP_PausablePair {
         uint256 next
     );
     function providerOfferIndex(address provider) external view returns (uint256 index);
-    function delegators(address provider, uint256 index) external view returns (address delegator);
-    function delegatorsIdx(address provider, address delegator) external view returns (uint256 index);
+    function delegator(address provider) external view returns (address);
 
     function governance() external view returns (address);
     function oracleLiquidityProvider() external view returns (address);
@@ -68,11 +66,7 @@ interface IOSWAP_OraclePair is IOSWAP_PausablePair {
     function getAmountOut(address tokenIn, uint256 amountIn, bytes calldata data) external view returns (uint256 amountOut);
     function getAmountIn(address tokenOut, uint256 amountOut, bytes calldata data) external view returns (uint256 amountIn);
 
-    function delegatorsLength(address provider) external view returns (uint256);
-    function getDelegators(address provider, uint256 start, uint256 length) external view returns (address[] memory providerDelegators);
-    function isDelegator(address provider, address delegator) external view returns (bool);
-    function addDelegator(address delegator) external;
-    function removeDelegator(address delegator) external;
+    function setDelegator(address _delegator) external;
 
     function getQueue(bool direction, uint256 start, uint256 end) external view returns (uint256[] memory index, address[] memory provider, uint256[] memory amount, uint256[] memory staked, uint256[] memory expire);
     function getQueueFromIndex(bool direction, uint256 from, uint256 count) external view returns (uint256[] memory index, address[] memory provider, uint256[] memory amount, uint256[] memory staked, uint256[] memory expire);

@@ -32,7 +32,7 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
         _;
     }
     modifier onlyDelegator(address provider) {
-        require(provider == msg.sender || isDelegator(provider, msg.sender), "Not a delegator");
+        require(provider == msg.sender || delegator[provider] == msg.sender, "Not a delegator");
         _;
     }
 
@@ -41,8 +41,7 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
     mapping (bool => uint256) public override queueSize;
     mapping (bool => mapping (uint256 => Offer)) public override offers;
     mapping (address => uint256) public override providerOfferIndex;
-    mapping (address => address[]) public override delegators;
-    mapping (address => mapping (address => uint256)) public override delegatorsIdx;
+    mapping (address => address) public override delegator;
 
     address public override immutable governance;
     address public override immutable oracleLiquidityProvider;
@@ -110,6 +109,10 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
         (bool success, bytes memory data) = token.call(abi.encodeWithSelector(SELECTOR, to, value));
         require(success && (data.length == 0 || abi.decode(data, (bool))), 'TRANSFER_FAILED');
     }
+    function _safeTransferFrom(address token, address from, address to, uint value) internal {
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, from, to, value));
+        require(success && (data.length == 0 || abi.decode(data, (bool))), 'TransferHelper: TRANSFER_FROM_FAILED');
+    }
 
     function _getSwappedAmount(bool direction, uint256 amountIn, bytes calldata data) internal view returns (uint256 amountOut, uint256 price, uint256 tradeFeeCollected, uint256 tradeFee, uint256 protocolFee) {
         address oracle;
@@ -140,44 +143,15 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
         amountIn = amountIn.mul(FEE_BASE).div(FEE_BASE.sub(tradeFee)).add(1);
     }
 
-    // delegrator
-    function delegatorsLength(address provider) external view override returns (uint256) {
-        return delegators[provider].length;
-    }
-    function getDelegators(address provider, uint256 start, uint256 length) external view override returns (address[] memory providerDelegators) {
-        if (start.add(length) > delegators[provider].length) {
-            length = delegators[provider].length - start;
-        }
-        providerDelegators = new address[](length);
-        for (uint256 i = 0 ; i < length ; i++) {
-            providerDelegators[i] = delegators[provider][i.add(start)];
-        }
-    }
-    function isDelegator(address provider, address delegator) public view override returns (bool) {
-        return delegators[provider].length > 0 && delegators[provider][delegatorsIdx[provider][delegator]] == delegator;
-    }
-    function addDelegator(address delegator) external override {
+    function setDelegator(address _delegator) external override {
         address provider = msg.sender;
-        require(!isDelegator(provider, delegator), "already a delegator");
-        delegatorsIdx[provider][delegator] = delegators[provider].length;
-        delegators[provider].push(delegator);
-        uint256 feePerDelegator = IOSWAP_OracleFactory(factory).feePerDelegator();
-        feeBalance = feeBalance.add(feePerDelegator);
-        IERC20(govToken).transferFrom(msg.sender, address(this), feePerDelegator);
-        emit AddDelegator(provider, delegator);
-    }
-    function removeDelegator(address delegator) external override {
-        address provider = msg.sender;
-        uint256 idx = delegatorsIdx[provider][delegator];
-        uint256 length = delegators[provider].length;
-        require(length > 0 && delegators[provider][idx] == delegator, "not a delegator");
-        if (idx < length - 1) {
-            address tmp = delegators[provider][idx] = delegators[provider][length - 1];
-            delegatorsIdx[provider][tmp] = idx;
+        delegator[provider] = _delegator;
+        if (_delegator != address(0)) {
+            uint256 feePerDelegator = IOSWAP_OracleFactory(factory).feePerDelegator();
+            feeBalance = feeBalance.add(feePerDelegator);
+            _safeTransferFrom(govToken, provider, address(this), feePerDelegator);
         }
-        delete delegatorsIdx[provider][delegator];
-        delegators[provider].pop();
-        emit RemoveDelegator(provider, delegator);
+        emit SetDelegator(provider, _delegator);
     }
 
     function getQueue(bool direction, uint256 start, uint256 end) external view override returns (uint256[] memory index, address[] memory provider, uint256[] memory amount, uint256[] memory staked, uint256[] memory expire) {
