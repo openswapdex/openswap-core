@@ -16,16 +16,6 @@ contract OSWAP_RestrictedFactory is IOSWAP_RestrictedFactory, OSWAP_PausableFact
         _; 
     }
 
-    // event PairCreated(address indexed token0, address indexed token1, address pair, uint newSize);
-    // event Shutdowned();
-    // event Restarted();
-    // event PairShutdowned(address indexed pair);
-    // event PairRestarted(address indexed pair);
-    // event ParamSet(bytes32 name, bytes32 value);
-    // event ParamSet2(bytes32 name, bytes32 value1, bytes32 value2);
-    // event OracleAdded(address indexed token0, address indexed token1, address oracle);
-    // event ApprovalMsgSender(address indexed who, bool allow);
-
     uint256 constant FEE_BASE = 10 ** 5;
 
     address public override immutable whitelistFactory;

@@ -504,7 +504,7 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
             totalTradeFeeCollected = totalTradeFeeCollected.add(amount[1]);
             totalProtocolFeeCollected = totalProtocolFeeCollected.add(amount[2]);
         }
-        require(totalIn <= 1e18, "Invalid input");
+        require(totalIn == 1e18, "Invalid input");
         emit Swap(trader, direction, amountIn, totalOut, totalTradeFeeCollected, totalProtocolFeeCollected);
     }
 
