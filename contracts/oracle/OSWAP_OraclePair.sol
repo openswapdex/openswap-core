@@ -396,8 +396,10 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
     }
     function pauseOffer(address provider, bool direction) external override onlyDelegator(provider) {
         uint256 index = providerOfferIndex[provider];
-        _dequeue(direction, index);
-        emit DelegatorPauseOffer(msg.sender, provider, direction);
+        if (offers[direction][index].isActive) {
+            _dequeue(direction, index);
+            emit DelegatorPauseOffer(msg.sender, provider, direction);
+        }
     }
     function resumeOffer(address provider, bool direction, uint256 afterIndex) external override onlyDelegator(provider) {
         uint256 index = providerOfferIndex[provider];
