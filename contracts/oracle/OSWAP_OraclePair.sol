@@ -404,8 +404,10 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
     function resumeOffer(address provider, bool direction, uint256 afterIndex) external override onlyDelegator(provider) {
         uint256 index = providerOfferIndex[provider];
         Offer storage offer = offers[direction][index];
-        _enqueue(direction, index, offer.staked, afterIndex, offer.amount, offer.expire);
-        emit DelegatorResumeOffer(msg.sender, provider, direction);
+        if (!offer.isActive && offer.expire > block.timestamp && offer.amount > 0) {
+            _enqueue(direction, index, offer.staked, afterIndex, offer.amount, offer.expire);
+            emit DelegatorResumeOffer(msg.sender, provider, direction);
+        }
     }
     function removeLiquidity(address provider, bool direction, uint256 unstake, uint256 afterIndex, uint256 amountOut, uint256 reserveOut, uint256 expire) external override lock {
         require(msg.sender == oracleLiquidityProvider || msg.sender == provider, "Not from router or owner");
