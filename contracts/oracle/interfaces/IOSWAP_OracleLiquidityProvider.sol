@@ -16,6 +16,7 @@ interface IOSWAP_OracleLiquidityProvider {
         uint afterIndex,
         uint amountIn,
         uint expire,
+        bool enable,
         uint deadline
     ) external returns (uint256 index);
     function addLiquidityETH(
@@ -25,6 +26,7 @@ interface IOSWAP_OracleLiquidityProvider {
         uint afterIndex,
         uint amountAIn,
         uint expire,
+        bool enable,
         uint deadline
     ) external payable returns (uint index);
 
@@ -39,6 +41,7 @@ interface IOSWAP_OracleLiquidityProvider {
         uint amountOut,
         uint256 reserveOut, 
         uint expire,
+        bool enable,
         uint deadline
     ) external;
     function removeLiquidityETH(
@@ -50,6 +53,7 @@ interface IOSWAP_OracleLiquidityProvider {
         uint amountOut,
         uint256 reserveOut, 
         uint expire,
+        bool enable,
         uint deadline
     ) external;
     function removeAllLiquidity(

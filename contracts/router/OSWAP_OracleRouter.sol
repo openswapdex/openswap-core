@@ -276,7 +276,7 @@ contract OSWAP_OracleRouter is IOSWAP_OracleRouter {
                 oracle ? oracleFactory : ammFactory,
                 keccak256(abi.encodePacked(token0, token1)),
                 oracle ? 
-                /*oracle*/hex'bd4c30539b0e2f1886bed775699b71552280e548e8aec9647be96426f780c6ef' : // oracle init code hash
+                /*oracle*/hex'fcd483d264929d09be9e6e81431609a52827427b0b82426b1187ff2e977d1741' : // oracle init code hash
                 /*amm*/hex'f8714bca8a73678d89826bbaeb5ac7b9e66b73fb8e5287206312ac7dcb8f6c65' // amm init code hash
             ))));
     }

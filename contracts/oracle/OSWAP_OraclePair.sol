@@ -111,7 +111,7 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
     }
     function _safeTransferFrom(address token, address from, address to, uint value) internal {
         (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, from, to, value));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), 'TransferHelper: TRANSFER_FROM_FAILED');
+        require(success && (data.length == 0 || abi.decode(data, (bool))), 'TRANSFER_FROM_FAILED');
     }
 
     function _getSwappedAmount(bool direction, uint256 amountIn, bytes calldata data) internal view returns (uint256 amountOut, uint256 price, uint256 tradeFeeCollected, uint256 tradeFee, uint256 protocolFee) {
@@ -230,31 +230,27 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
         }
     }
     function _enqueue(bool direction, uint256 index, uint256 staked, uint256 afterIndex, uint256 amount, uint256 expire) internal {
-        uint256 nextIndex;
-        (afterIndex, nextIndex) = findPosition(direction, staked, afterIndex);
+        if (amount > 0 && expire > block.timestamp) {
+            uint256 nextIndex;
+            (afterIndex, nextIndex) = findPosition(direction, staked, afterIndex);
 
-        if (afterIndex != 0)
-            offers[direction][afterIndex].next = index;
-        if (nextIndex != 0)
-            offers[direction][nextIndex].prev = index;
-        
-        Offer storage offer = offers[direction][index];
-        if (offer.amount != amount)
-            offer.amount = amount;
-        if (offer.staked != staked)
-            offer.staked = staked;
-        if (offer.expire != expire)
-            offer.expire = expire;
-        offer.prev = afterIndex;
-        offer.next = nextIndex;
+            if (afterIndex != 0)
+                offers[direction][afterIndex].next = index;
+            if (nextIndex != 0)
+                offers[direction][nextIndex].prev = index;
 
-        if (afterIndex == 0){
-            first[direction] = index;
-        }
+            Offer storage offer = offers[direction][index];
+            offer.prev = afterIndex;
+            offer.next = nextIndex;
 
-        if (!offer.isActive) {
-            offer.isActive = true;
-            queueSize[direction]++;
+            if (afterIndex == 0){
+                first[direction] = index;
+            }
+
+            if (!offer.isActive) {
+                offer.isActive = true;
+                queueSize[direction]++;
+            }
         }
     }
     function _halfDequeue(bool direction, uint index) internal returns (uint256 prevIndex, uint256 nextIndex) {
@@ -285,42 +281,54 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
         queueSize[direction] = queueSize[direction].sub(1);
     }
 
-    function _newOffer(address provider, bool direction, uint256 index, uint256 staked, uint256 afterIndex, uint256 amount, uint256 expire) internal {
+    function _newOffer(address provider, bool direction, uint256 index, uint256 staked, uint256 afterIndex, uint256 amount, uint256 expire, bool enable) internal {
         uint256 minLotSize = IOSWAP_OracleFactory(factory).minLotSize(direction ? token1 : token0);
         require(amount >= minLotSize, "Minium lot size not met");
-        _enqueue(direction, index, staked, afterIndex, amount, expire);
+
+        if (enable)
+            _enqueue(direction, index, staked, afterIndex, amount, expire);
 
         Offer storage offer = offers[direction][index];
         offer.provider = provider;
+        offer.staked = staked;
+        offer.amount = amount;
+        offer.expire = expire;
         offer.privateReplenish = true;
+        offer.enabled = enable;
+
+        Offer storage counteroffer = offers[!direction][index];
+        counteroffer.provider = provider;
+        counteroffer.privateReplenish = true;
+        counteroffer.enabled = enable;
     }
-    function _renewOffer(address provider, bool direction, uint256 index, uint256 stakeAdded, uint256 afterIndex, uint256 amountAdded, uint256 expire) internal {
+    function _renewOffer(bool direction, uint256 index, uint256 stakeAdded, uint256 afterIndex, uint256 amountAdded, uint256 expire, bool enable) internal {
         Offer storage offer = offers[direction][index];
-        require(provider == offer.provider, "Provider not matched");
         uint256 newAmount = offer.amount.add(amountAdded);
         uint256 minLotSize = IOSWAP_OracleFactory(factory).minLotSize(direction ? token1 : token0);
         require(newAmount >= minLotSize, "Minium lot size not met");
-        if (stakeAdded > 0 || !offer.isActive) {
-            uint256 staked = offer.staked.add(stakeAdded);
-            if (index == afterIndex && offers[direction][offer.prev].staked >= staked && staked >= offers[direction][offer.next].staked) {
-                if (amountAdded > 0)
-                    offer.amount = newAmount;
-                if (stakeAdded > 0)
-                    offer.staked = staked;
-                offer.expire = expire;
+        uint256 staked = offer.staked.add(stakeAdded);
+        offer.enabled = enable;
+        if (amountAdded > 0)
+            offer.amount = newAmount;
+        if (stakeAdded > 0)
+            offer.staked = staked;
+        offer.expire = expire;
+
+        if (enable) {
+            if (offer.isActive) {
+                if (stakeAdded > 0 && (index != afterIndex || staked > offers[direction][offer.prev].staked)) {
+                    _halfDequeue(direction, index);
+                    _enqueue(direction, index, staked, afterIndex, newAmount, expire);
+                }
             } else {
-                afterIndex = offer.prev;
-                _halfDequeue(direction, index);
                 _enqueue(direction, index, staked, afterIndex, newAmount, expire);
             }
         } else {
-            if (amountAdded > 0)
-                offer.amount = newAmount;
-            offer.expire = expire;
+            if (offer.isActive)
+                _dequeue(direction, index);
         }
     }
-    
-    function addLiquidity(address provider, bool direction, uint256 staked, uint256 afterIndex, uint256 expire) external override lock returns (uint256 index) {
+    function addLiquidity(address provider, bool direction, uint256 staked, uint256 afterIndex, uint256 expire, bool enable) external override lock returns (uint256 index) {
         require(IOSWAP_OracleFactory(factory).isLive(), 'GLOBALLY PAUSED');
         require(msg.sender == oracleLiquidityProvider || msg.sender == provider, "Not from router or owner");
         require(isLive, "PAUSED");
@@ -343,16 +351,12 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
 
         index = providerOfferIndex[provider];
         if (index > 0) {
-            _renewOffer(provider, direction, index, staked, afterIndex, amountIn, expire);
+            _renewOffer(direction, index, staked, afterIndex, amountIn, expire, enable);
         } else {
             index = (++counter);
             providerOfferIndex[provider] = index;
             require(amountIn > 0, "No amount in");
-            _newOffer(provider, direction, index, staked, afterIndex, amountIn, expire);
-
-            Offer storage counteroffer = offers[!direction][index];
-            counteroffer.provider = provider;
-            counteroffer.privateReplenish = true;
+            _newOffer(provider, direction, index, staked, afterIndex, amountIn, expire, enable);
 
             emit NewProvider(provider, index);
         }
@@ -361,7 +365,7 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
         lastToken0Balance = newToken0Balance;
         lastToken1Balance = newToken1Balance;
 
-        emit AddLiquidity(provider, direction, staked, amountIn, expire);
+        emit AddLiquidity(provider, direction, staked, amountIn, expire, enable);
     }
     function setPrivateReplenish(bool _replenish) external override lock {
         address provider = msg.sender;
@@ -376,6 +380,7 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
 
         // move funds from internal wallet
         Offer storage offer = offers[direction][index];
+        require(offer.enabled, "Offer not enabled");
         require(!offer.privateReplenish || provider == msg.sender, "Not from provider");
 
         if (provider != msg.sender) {
@@ -390,7 +395,7 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
         require(expire > block.timestamp, "Already expired");
 
         offer.reserve = offer.reserve.sub(amountIn);
-        _renewOffer(provider, direction, index, 0, afterIndex, amountIn, expire);
+        _renewOffer(direction, index, 0, afterIndex, amountIn, expire, true);
 
         emit Replenish(provider, direction, amountIn, expire);
     }
@@ -409,7 +414,7 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
             emit DelegatorResumeOffer(msg.sender, provider, direction);
         }
     }
-    function removeLiquidity(address provider, bool direction, uint256 unstake, uint256 afterIndex, uint256 amountOut, uint256 reserveOut, uint256 expire) external override lock {
+    function removeLiquidity(address provider, bool direction, uint256 unstake, uint256 afterIndex, uint256 amountOut, uint256 reserveOut, uint256 expire, bool enable) external override lock {
         require(msg.sender == oracleLiquidityProvider || msg.sender == provider, "Not from router or owner");
         require(expire > block.timestamp, "Already expired");
 
@@ -417,35 +422,41 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
         require(index > 0, "Provider liquidity not found");
 
         Offer storage offer = offers[direction][index];
-        require(provider == offer.provider, "Forbidden");
         uint256 newAmount = offer.amount.sub(amountOut);
         uint256 minLotSize = IOSWAP_OracleFactory(factory).minLotSize(direction ? token1 : token0);
         require(newAmount == 0 || newAmount >= minLotSize, "Minium lot size not met");
-        if (unstake > 0) {
-            uint256 staked = offer.staked.sub(unstake);
-            if (index == afterIndex && offers[direction][offer.prev].staked >= staked && staked > offers[direction][offer.next].staked) {
-                if (amountOut > 0)
-                    offer.amount = newAmount;
-                if (unstake > 0)
-                    offer.staked = staked;
-                offer.expire = expire;
+
+        uint256 staked = offer.staked.sub(unstake);
+        offer.enabled = enable;
+        if (amountOut > 0)
+            offer.amount = newAmount;
+        if (unstake > 0)
+            offer.staked = staked;
+        offer.reserve = offer.reserve.sub(reserveOut);
+        offer.expire = expire;
+
+        if (enable) {
+            if (offer.isActive) {
+                if (unstake > 0 && (index != afterIndex || offers[direction][offer.next].staked >= staked)) {
+                    _halfDequeue(direction, index);
+                    _enqueue(direction, index, staked, afterIndex, newAmount, expire);
+                }
             } else {
-                afterIndex = offer.prev;
-                _halfDequeue(direction, index);
                 _enqueue(direction, index, staked, afterIndex, newAmount, expire);
             }
+        } else {
+            if (offer.isActive)
+                _dequeue(direction, index);
+        }
+
+        if (unstake > 0) {
             stakeBalance = stakeBalance.sub(unstake);
             _safeTransfer(govToken, msg.sender, unstake); // optimistically transfer tokens
-        } else {
-            if (amountOut > 0)
-                offer.amount = newAmount;
-            offer.expire = expire;
         }
-        offer.reserve = offer.reserve.sub(reserveOut);
 
         if (amountOut > 0 || reserveOut > 0)
             _safeTransfer(direction ? token1 : token0, msg.sender, amountOut.add(reserveOut)); // optimistically transfer tokens
-        emit RemoveLiquidity(provider, direction, unstake, amountOut, reserveOut, expire);
+        emit RemoveLiquidity(provider, direction, unstake, amountOut, reserveOut, expire, enable);
 
         _sync();
     }
@@ -482,7 +493,7 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
         if (offer.isActive)
             _dequeue(direction, index);
         _safeTransfer(direction ? token1 : token0, msg.sender, amount.add(reserve)); // optimistically transfer tokens
-        emit RemoveLiquidity(provider, direction, staked, amount, reserve, 0);
+        emit RemoveLiquidity(provider, direction, staked, amount, reserve, 0, offer.enabled);
     }
     function purgeExpire(bool direction, uint256 startingIndex, uint256 limit) external override lock returns (uint256 purge) {
         uint256 index = startingIndex;

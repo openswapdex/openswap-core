@@ -41,6 +41,7 @@ contract OSWAP_OracleLiquidityProvider is IOSWAP_OracleLiquidityProvider {
         uint afterIndex,
         uint amountIn,
         uint expire,
+        bool enable,
         uint deadline
     ) external virtual override ensure(deadline) returns (uint256 index) {
         // create the pair if it doesn't exist yet
@@ -55,7 +56,7 @@ contract OSWAP_OracleLiquidityProvider is IOSWAP_OracleLiquidityProvider {
             TransferHelper.safeTransferFrom(addingTokenA ? tokenA : tokenB, msg.sender, pair, amountIn);
 
         bool direction = (tokenA < tokenB) ? !addingTokenA : addingTokenA;
-        (index) = IOSWAP_OraclePair(pair).addLiquidity(msg.sender, direction, staked, afterIndex, expire);
+        (index) = IOSWAP_OraclePair(pair).addLiquidity(msg.sender, direction, staked, afterIndex, expire, enable);
     }
     function addLiquidityETH(
         address tokenA,
@@ -64,6 +65,7 @@ contract OSWAP_OracleLiquidityProvider is IOSWAP_OracleLiquidityProvider {
         uint afterIndex,
         uint amountAIn,
         uint expire,
+        bool enable,
         uint deadline
     ) external virtual override payable ensure(deadline) returns (uint index) {
         // create the pair if it doesn't exist yet
@@ -84,7 +86,7 @@ contract OSWAP_OracleLiquidityProvider is IOSWAP_OracleLiquidityProvider {
             require(IWETH(WETH).transfer(pair, ETHIn), 'Transfer failed');
         }
         bool direction = (tokenA < WETH) ? !addingTokenA : addingTokenA;
-        (index) = IOSWAP_OraclePair(pair).addLiquidity(msg.sender, direction, staked, afterIndex, expire);
+        (index) = IOSWAP_OraclePair(pair).addLiquidity(msg.sender, direction, staked, afterIndex, expire, enable);
     }
 
     // **** REMOVE LIQUIDITY ****
@@ -98,11 +100,12 @@ contract OSWAP_OracleLiquidityProvider is IOSWAP_OracleLiquidityProvider {
         uint amountOut,
         uint256 reserveOut, 
         uint expire,
+        bool enable,
         uint deadline
     ) public virtual override ensure(deadline) {
         address pair = pairFor(tokenA, tokenB);
         bool direction = (tokenA < tokenB) ? !removingTokenA : removingTokenA;
-        IOSWAP_OraclePair(pair).removeLiquidity(msg.sender, direction, unstake, afterIndex, amountOut, reserveOut, expire);
+        IOSWAP_OraclePair(pair).removeLiquidity(msg.sender, direction, unstake, afterIndex, amountOut, reserveOut, expire, enable);
         
         if (unstake > 0)
             TransferHelper.safeTransfer(govToken, to, unstake);
@@ -120,11 +123,12 @@ contract OSWAP_OracleLiquidityProvider is IOSWAP_OracleLiquidityProvider {
         uint amountOut,
         uint256 reserveOut, 
         uint expire,
+        bool enable,
         uint deadline
     ) public virtual override ensure(deadline) {
         address pair = pairFor(tokenA, WETH);
         bool direction = (tokenA < WETH) ? !removingTokenA : removingTokenA;
-        IOSWAP_OraclePair(pair).removeLiquidity(msg.sender, direction, unstake, afterIndex, amountOut, reserveOut, expire);
+        IOSWAP_OraclePair(pair).removeLiquidity(msg.sender, direction, unstake, afterIndex, amountOut, reserveOut, expire, enable);
 
         if (unstake > 0)
             TransferHelper.safeTransfer(govToken, to, unstake);
@@ -181,7 +185,7 @@ contract OSWAP_OracleLiquidityProvider is IOSWAP_OracleLiquidityProvider {
                 hex'ff',
                 factory,
                 keccak256(abi.encodePacked(token0, token1)),
-                /*oracle*/hex'bd4c30539b0e2f1886bed775699b71552280e548e8aec9647be96426f780c6ef' // oracle init code hash
+                /*oracle*/hex'fcd483d264929d09be9e6e81431609a52827427b0b82426b1187ff2e977d1741' // oracle init code hash
             ))));
     }
 }
