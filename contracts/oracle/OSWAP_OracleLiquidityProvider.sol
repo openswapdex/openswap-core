@@ -185,7 +185,7 @@ contract OSWAP_OracleLiquidityProvider is IOSWAP_OracleLiquidityProvider {
                 hex'ff',
                 factory,
                 keccak256(abi.encodePacked(token0, token1)),
-                /*oracle*/hex'fcd483d264929d09be9e6e81431609a52827427b0b82426b1187ff2e977d1741' // oracle init code hash
+                /*oracle*/hex'b1b56308d1af44d608ddd00c6f0f6d2bcb8ebbdebc9c3e9b8c6a6137855b9538' // oracle init code hash
             ))));
     }
 }

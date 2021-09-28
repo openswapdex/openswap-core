@@ -380,7 +380,6 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
 
         // move funds from internal wallet
         Offer storage offer = offers[direction][index];
-        require(offer.enabled, "Offer not enabled");
         require(!offer.privateReplenish || provider == msg.sender, "Not from provider");
 
         if (provider != msg.sender) {
@@ -395,7 +394,7 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
         require(expire > block.timestamp, "Already expired");
 
         offer.reserve = offer.reserve.sub(amountIn);
-        _renewOffer(direction, index, 0, afterIndex, amountIn, expire, true);
+        _renewOffer(direction, index, 0, afterIndex, amountIn, expire, offer.enabled);
 
         emit Replenish(provider, direction, amountIn, expire);
     }
