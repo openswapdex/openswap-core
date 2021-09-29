@@ -113,6 +113,9 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
         (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, from, to, value));
         require(success && (data.length == 0 || abi.decode(data, (bool))), 'TRANSFER_FROM_FAILED');
     }
+    function minLotSize(bool direction) internal view returns (uint256) {
+        return IOSWAP_OracleFactory(factory).minLotSize(direction ? token1 : token0);
+    }
 
     function _getSwappedAmount(bool direction, uint256 amountIn, bytes calldata data) internal view returns (uint256 amountOut, uint256 price, uint256 tradeFeeCollected, uint256 tradeFee, uint256 protocolFee) {
         address oracle;
@@ -282,8 +285,7 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
     }
 
     function _newOffer(address provider, bool direction, uint256 index, uint256 staked, uint256 afterIndex, uint256 amount, uint256 expire, bool enable) internal {
-        uint256 minLotSize = IOSWAP_OracleFactory(factory).minLotSize(direction ? token1 : token0);
-        require(amount >= minLotSize, "Minium lot size not met");
+        require(amount >= minLotSize(direction), "Minium lot size not met");
 
         if (enable)
             _enqueue(direction, index, staked, afterIndex, amount, expire);
@@ -304,8 +306,7 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
     function _renewOffer(bool direction, uint256 index, uint256 stakeAdded, uint256 afterIndex, uint256 amountAdded, uint256 expire, bool enable) internal {
         Offer storage offer = offers[direction][index];
         uint256 newAmount = offer.amount.add(amountAdded);
-        uint256 minLotSize = IOSWAP_OracleFactory(factory).minLotSize(direction ? token1 : token0);
-        require(newAmount >= minLotSize, "Minium lot size not met");
+        require(newAmount >= minLotSize(direction), "Minium lot size not met");
         uint256 staked = offer.staked.add(stakeAdded);
         offer.enabled = enable;
         if (amountAdded > 0)
@@ -410,7 +411,8 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
     function resumeOffer(address provider, bool direction, uint256 afterIndex) external override onlyDelegator(provider) {
         uint256 index = providerOfferIndex[provider];
         Offer storage offer = offers[direction][index];
-        if (!offer.isActive && offer.expire > block.timestamp && offer.amount > 0) {
+        
+        if (!offer.isActive && offer.expire > block.timestamp && offer.amount >= minLotSize(direction)) {
             _enqueue(direction, index, offer.staked, afterIndex, offer.amount, offer.expire);
         }
         offer.enabled = true;
@@ -425,8 +427,7 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
 
         Offer storage offer = offers[direction][index];
         uint256 newAmount = offer.amount.sub(amountOut);
-        uint256 minLotSize = IOSWAP_OracleFactory(factory).minLotSize(direction ? token1 : token0);
-        require(newAmount == 0 || newAmount >= minLotSize, "Minium lot size not met");
+        require(newAmount == 0 || newAmount >= minLotSize(direction), "Minium lot size not met");
 
         uint256 staked = offer.staked.sub(unstake);
         offer.enabled = enable;
