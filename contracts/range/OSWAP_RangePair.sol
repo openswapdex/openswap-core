@@ -440,7 +440,7 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
             let count := calldataload(add(offset, 0x20))
             let size := mul(count, 0x20)
 
-            if lt(calldatasize(), add(offset, add(size, 0x20))) { // count * 0x20 + 0x20 + 0x44
+            if lt(calldatasize(), add(add(offset, 0x40), size)) { // 0x84 (offset) + 0x20 (bytes_size_header) + 0x20 (count) + count*0x20 (list_size)
                 revert(0, 0)
             }
             let mark := mload(0x40)
