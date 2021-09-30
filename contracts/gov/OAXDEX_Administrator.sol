@@ -100,8 +100,8 @@ contract OAXDEX_Administrator is IOAXDEX_Administrator {
     }
     function executeVetoVoting(address votingContract) external override {
         require(checkVote(vetoVotingVote[votingContract]), "Admin: executeVetoVoting: Quorum not met");
-        IOAXDEX_Governance(governance).veto(votingContract);
         clearVote(vetoVotingVote[votingContract]);
+        IOAXDEX_Governance(governance).veto(votingContract);
     }
 
     function factoryShutdown(address factory, bool YorN) external override onlyShutdownAdmin {
@@ -113,8 +113,8 @@ contract OAXDEX_Administrator is IOAXDEX_Administrator {
     }
     function executeFactoryShutdown(address factory) external override {
         require(checkVote(factoryShutdownVote[factory]), "Admin: executeFactoryShutdown: Quorum not met");
-        IOAXDEX_PausableFactory(factory).setLive(false);
         clearVote(factoryShutdownVote[factory]);
+        IOAXDEX_PausableFactory(factory).setLive(false);
     }
 
     function factoryRestart(address factory, bool YorN) external override onlyShutdownAdmin {
@@ -126,8 +126,8 @@ contract OAXDEX_Administrator is IOAXDEX_Administrator {
     }
     function executeFactoryRestart(address factory) external override {
         require(checkVote(factoryRestartVote[factory]), "Admin: executeFactoryRestart: Quorum not met");
-        IOAXDEX_PausableFactory(factory).setLive(true);
         clearVote(factoryRestartVote[factory]);
+        IOAXDEX_PausableFactory(factory).setLive(true);
     }
 
     function pairShutdown(address pair, bool YorN) external override onlyShutdownAdmin {
@@ -139,8 +139,8 @@ contract OAXDEX_Administrator is IOAXDEX_Administrator {
     }
     function executePairShutdown(address factory, address pair) external override {
         require(checkVote(pairShutdownVote[pair]), "Admin: executePairShutdown: Quorum not met");
-        IOAXDEX_PausableFactory(factory).setLiveForPair(pair, false);
         clearVote(pairShutdownVote[pair]);
+        IOAXDEX_PausableFactory(factory).setLiveForPair(pair, false);
     }
 
     function pairRestart(address pair, bool YorN) external override onlyShutdownAdmin {
@@ -152,7 +152,7 @@ contract OAXDEX_Administrator is IOAXDEX_Administrator {
     }
     function executePairRestart(address factory, address pair) external override {
         require(checkVote(pairRestartVote[pair]), "Admin: executePairRestart: Quorum not met");
-        IOAXDEX_PausableFactory(factory).setLiveForPair(pair, true);
         clearVote(pairRestartVote[pair]);
+        IOAXDEX_PausableFactory(factory).setLiveForPair(pair, true);
     }
 }
