@@ -280,6 +280,7 @@ contract OSWAP_HybridRouter is IOSWAP_HybridRouter {
     function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut, uint24 fee) internal pure returns (uint amountOut) {
         require(amountIn > 0, 'INSUFFICIENT_INPUT_AMOUNT');
         require(reserveIn > 0 && reserveOut > 0, 'INSUFFICIENT_LIQUIDITY');
+        require(fee <= 10 ** 6, 'INVALID FEE');
         uint amountInWithFee = amountIn.mul(fee);
         uint numerator = amountInWithFee.mul(reserveOut);
         uint denominator = reserveIn.mul(10 ** 6).add(amountInWithFee);
@@ -289,6 +290,7 @@ contract OSWAP_HybridRouter is IOSWAP_HybridRouter {
     function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut, uint24 fee) internal pure returns (uint amountIn) {
         require(amountOut > 0, 'INSUFFICIENT_OUTPUT_AMOUNT');
         require(reserveIn > 0 && reserveOut > 0, 'INSUFFICIENT_LIQUIDITY');
+        require(fee <= 10 ** 6, 'INVALID FEE');
         uint numerator = reserveIn.mul(amountOut).mul(10 ** 6);
         uint denominator = reserveOut.sub(amountOut).mul(fee);
         amountIn = (numerator / denominator).add(1);

@@ -323,7 +323,7 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
 
         _sync();
     }
-    function removeAllLiquidity(address provider) external override returns (uint256 amount0, uint256 amount1, uint256 staked) {
+    function removeAllLiquidity(address provider) external override lock returns (uint256 amount0, uint256 amount1, uint256 staked) {
         require(msg.sender == rangeLiquidityProvider || msg.sender == provider, "Not from router or owner");
 
         uint256 reserve0;

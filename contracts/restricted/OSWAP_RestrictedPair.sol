@@ -16,7 +16,6 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
     using SafeMath for uint256;
 
     uint256 constant FEE_BASE = 10 ** 5;
-    uint256 constant FEE_BASE_SQ = (10 ** 5) ** 2;
     uint256 constant WEI = 10**18;
 
     bytes32 constant FEE_PER_ORDER = "RestrictedPair.feePerOrder";
@@ -422,7 +421,7 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
             let count := calldataload(add(offset, 0x20))
             let size := mul(count, 0x20)
 
-            if lt(calldatasize(), add(offset, add(mul(2, size), 0x20))) { // offset + 0x20 + count * 0x20
+            if lt(calldatasize(), add(add(offset, 0x40), mul(2, size))) {//add(offset, add(mul(2, size), 0x20))) { // offset + 0x20 (bytes_size_header) + 0x20 (count) + 2* count*0x20 (list_size)
                 revert(0, 0)
             }
             let mark := mload(0x40)

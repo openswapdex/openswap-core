@@ -105,7 +105,7 @@ contract OSWAP_Pair is IOSWAP_Pair, OSWAP_ERC20, OSWAP_PausablePair {
         emit Sync(reserve0, reserve1);
     }
 
-    // if fee is on, mint liquidity equivalent to 1/6th of the growth in sqrt(k)
+    // if fee is on, mint liquidity equivalent to the protocol fee of the growth in sqrt(k)
     function _mintFee(uint112 _reserve0, uint112 _reserve1) private returns (bool feeOn) {
         (uint256 latestProtocolFee, address protocolFeeTo) = IOSWAP_Factory(factory).protocolFeeParams();
         uint _protocolFee = protocolFee;

@@ -420,7 +420,7 @@ contract OSWAP_Router is IOSWAP_Router {
                 hex'ff',
                 factory,
                 keccak256(abi.encodePacked(token0, token1)),
-                hex'f8714bca8a73678d89826bbaeb5ac7b9e66b73fb8e5287206312ac7dcb8f6c65' // init code hash
+                hex'5c193265bc1f16117085a454b86f04b786de5c40d54a45dc24869043eb75f155' // init code hash
             ))));
     }
 

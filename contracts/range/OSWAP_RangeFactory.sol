@@ -64,8 +64,8 @@ contract OSWAP_RangeFactory is OSWAP_FactoryBase, IOSWAP_RangeFactory, Ownable {
     }
     function getLiquidityProviderShare(uint256 stake) external view override returns (uint256 _liquidityProviderShare) {
         uint256 i;
-        for (uint256 j = stakeAmount.length ; j > 0 ; j--) {
-            i = j - 1;
+        for (int256 j = int(stakeAmount.length) - 1 ; j >= 0 ; j--) {
+            i = uint256(j);
             if (stakeAmount[i] <= stake) {
                 return liquidityProviderShare[i];
             }
