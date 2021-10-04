@@ -67,9 +67,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         path = new address[](length + 1);
         path[path.length - 1] = tokenOut;
         (address[] memory token0, address[] memory token1) = IOSWAP_HybridRouterRegistry(registry).getPairTokens(pair);
-        uint256 i;
-        for (int256 j = int256(pair.length) - 1 ; j >= 0; j--) {
-            i = uint256(j);
+        for (uint256 i = length - 1 ; i < length ; i--) {
             path[i] = _findToken(token0[i], token1[i], tokenOut);
             tokenOut = path[i];
         }
