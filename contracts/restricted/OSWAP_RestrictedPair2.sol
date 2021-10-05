@@ -16,7 +16,6 @@ contract OSWAP_RestrictedPair2 is IOSWAP_RestrictedPair, OSWAP_PausablePair  {
     using SafeMath for uint256;
 
     uint256 constant FEE_BASE = 10 ** 5;
-    uint256 constant FEE_BASE_SQ = (10 ** 5) ** 2;
     uint256 constant WEI = 10**18;
 
     bytes32 constant FEE_PER_ORDER = "RestrictedPair.feePerOrder";
@@ -135,19 +134,24 @@ contract OSWAP_RestrictedPair2 is IOSWAP_RestrictedPair, OSWAP_PausablePair  {
         uint256 alloc = traderAllocation[direction][offerIdx][trader];
         output = alloc < offerAmount ? alloc : offerAmount;
     }
-    function _getInputFromOutput(address trader, bool direction, address oracle, uint256 offerIdx, uint256 amountOut) internal view returns (uint256 amountIn, uint256 numerator, uint256 denominator) {
+    function _getAmountIn(address trader, bool direction, address oracle, uint256 offerIdx, uint256 requestOut) internal view returns (uint256 amountIn, uint256 amountOut, uint256 numerator, uint256 denominator) {
         bytes memory data2 = abi.encodePacked(offerIdx);
-        (numerator, denominator) = IOSWAP_OracleAdaptor2(oracle).getRatio(direction ? token0 : token1, direction ? token0 : token1, 0, amountOut, trader, data2);
-        amountIn = amountOut.mul(denominator);
+        (numerator, denominator) = IOSWAP_OracleAdaptor2(oracle).getRatio(direction ? token0 : token1, direction ? token1 : token0, 0, requestOut, trader, data2);
+        amountIn = requestOut.mul(denominator);
         if (scaler > 1)
             amountIn = (direction != scaleDirection) ? amountIn.mul(scaler) : amountIn.div(scaler);
         amountIn = amountIn.div(numerator);
+
+        amountOut = amountIn.mul(numerator);
+        if (scaler > 1)
+            amountOut = (direction == scaleDirection) ? amountOut.mul(scaler) : amountOut.div(scaler);
+        amountOut = amountOut.div(denominator);
     }
     function _oneOutput(uint256 amountIn, address trader, bool direction, uint256 offerIdx, address oracle, uint256 tradeFee) internal view returns (uint256 amountInPlusFee, uint256 output, uint256 tradeFeeCollected, uint256 price) {
         output = _getMaxOut(direction, offerIdx, trader);
 
         uint256 numerator; uint256 denominator;
-        (amountInPlusFee, numerator, denominator) = _getInputFromOutput(trader, direction, oracle, offerIdx, output);
+        (amountInPlusFee, output, numerator, denominator) = _getAmountIn(trader, direction, oracle, offerIdx, output);
 
         tradeFeeCollected = amountInPlusFee.mul(tradeFee).div(FEE_BASE.sub(tradeFee));
         amountInPlusFee = amountInPlusFee.add(tradeFeeCollected);
@@ -155,8 +159,9 @@ contract OSWAP_RestrictedPair2 is IOSWAP_RestrictedPair, OSWAP_PausablePair  {
         // check if offer enough to cover whole input, recalculate output if not
         if (amountIn < amountInPlusFee) {
             amountInPlusFee = amountIn;
-            tradeFeeCollected = amountIn.mul(tradeFee).div(FEE_BASE);
-            output = amountIn.sub(tradeFeeCollected).mul(numerator);
+            amountIn = amountIn.mul(FEE_BASE-tradeFee).div(FEE_BASE);
+            tradeFeeCollected = amountInPlusFee - amountIn;
+            output = amountIn.mul(numerator);
             if (scaler > 1)
                 output = (direction == scaleDirection) ? output.mul(scaler) : output.div(scaler);
             output = output.div(denominator);
@@ -192,8 +197,9 @@ contract OSWAP_RestrictedPair2 is IOSWAP_RestrictedPair, OSWAP_PausablePair  {
             require(offerIdx <= counter[direction], "Offer not exist");
             require(isApprovedTrader[direction][offerIdx][trader], "Not a approved trader");
             uint256 tmpInt/*=maxOut*/ = _getMaxOut(direction, offerIdx, trader);
-            (tmpInt/*=offerOut*/, amountOut) = (amountOut > tmpInt) ? (tmpInt, amountOut.sub(tmpInt)) : (amountOut, 0);
-            (tmpInt/*=offerIn*/,,) = _getInputFromOutput(trader, direction, oracle, offerIdx, tmpInt/*=offerOut*/);
+            tmpInt/*=offerOut*/ = (amountOut > tmpInt) ? tmpInt : amountOut;
+            (tmpInt/*=offerIn*/,offerIdx/*=output*/,,) = _getAmountIn(trader, direction, oracle, offerIdx, tmpInt/*=offerOut*/);
+            amountOut = amountOut.sub(offerIdx/*=output*/);
             amountIn = amountIn.add(tmpInt/*=offerIn*/);
         }
         amountIn = amountIn.mul(FEE_BASE).div(FEE_BASE.sub(tradeFee)).add(1);
@@ -466,7 +472,7 @@ contract OSWAP_RestrictedPair2 is IOSWAP_RestrictedPair, OSWAP_PausablePair  {
             let count := calldataload(add(offset, 0x20))
             let size := mul(count, 0x20)
 
-            if lt(calldatasize(), add(offset, add(size, 0x20))) { // offset + 0x20 + count * 0x20
+            if lt(calldatasize(), add(add(offset, 0x40), size)) { // offset + 0x20 (bytes_size_header) + 0x20 (count) + count*0x20 (list_size)
                 revert(0, 0)
             }
             let mark := mload(0x40)
