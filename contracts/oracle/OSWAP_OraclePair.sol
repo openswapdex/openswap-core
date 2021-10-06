@@ -579,7 +579,6 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
                     index = _dequeue(direction, index);
                 } else {
                     // remaining request amount
-                    amount = remainOut;
                     uint256 providerShare = amountInMinusProtocolFee.mul(remainOut).div(amountOut);
                     counteroffer.reserve = counteroffer.reserve.add(providerShare);
 
