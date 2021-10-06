@@ -303,11 +303,11 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
         counteroffer.privateReplenish = true;
         counteroffer.enabled = enable;
     }
-    function _renewOffer(bool direction, uint256 index, uint256 stakeAdded, uint256 afterIndex, uint256 amountAdded, uint256 expire, bool enable) internal {
+    function _renewOffer(bool direction, uint256 index, uint256 stakeAdded, uint256 afterIndex, uint256 amountAdded, uint256 expire, bool enable) internal returns (uint256 staked, uint256 newAmount) {
         Offer storage offer = offers[direction][index];
-        uint256 newAmount = offer.amount.add(amountAdded);
+        newAmount = offer.amount.add(amountAdded);
         require(newAmount >= minLotSize(direction), "Minium lot size not met");
-        uint256 staked = offer.staked.add(stakeAdded);
+        staked = offer.staked.add(stakeAdded);
         offer.enabled = enable;
         if (amountAdded > 0)
             offer.amount = newAmount;
@@ -352,7 +352,7 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
 
         index = providerOfferIndex[provider];
         if (index > 0) {
-            _renewOffer(direction, index, staked, afterIndex, amountIn, expire, enable);
+            (staked, amountIn) = _renewOffer(direction, index, staked, afterIndex, amountIn, expire, enable);
         } else {
             index = (++counter);
             providerOfferIndex[provider] = index;
@@ -395,9 +395,9 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
         require(expire > block.timestamp, "Already expired");
 
         offer.reserve = offer.reserve.sub(amountIn);
-        _renewOffer(direction, index, 0, afterIndex, amountIn, expire, offer.enabled);
+        (, uint256 totalAmount) = _renewOffer(direction, index, 0, afterIndex, amountIn, expire, offer.enabled);
 
-        emit Replenish(provider, direction, amountIn, expire);
+        emit Replenish(provider, direction, amountIn, totalAmount, offer.reserve, expire);
     }
     function pauseOffer(address provider, bool direction) external override onlyDelegator(provider) {
         uint256 index = providerOfferIndex[provider];
@@ -459,7 +459,7 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
 
         if (amountOut > 0 || reserveOut > 0)
             _safeTransfer(direction ? token1 : token0, msg.sender, amountOut.add(reserveOut)); // optimistically transfer tokens
-        emit RemoveLiquidity(provider, direction, unstake, amountOut, reserveOut, expire, enable);
+        emit RemoveLiquidity(provider, direction, offer.staked, offer.amount, offer.reserve, expire, enable);
 
         _sync();
     }
@@ -496,7 +496,7 @@ contract OSWAP_OraclePair is IOSWAP_OraclePair, OSWAP_PausablePair {
         if (offer.isActive)
             _dequeue(direction, index);
         _safeTransfer(direction ? token1 : token0, msg.sender, amount.add(reserve)); // optimistically transfer tokens
-        emit RemoveLiquidity(provider, direction, staked, amount, reserve, 0, offer.enabled);
+        emit RemoveLiquidity(provider, direction, 0, 0, 0, 0, offer.enabled);
     }
     function purgeExpire(bool direction, uint256 startingIndex, uint256 limit) external override lock returns (uint256 purge) {
         uint256 index = startingIndex;
