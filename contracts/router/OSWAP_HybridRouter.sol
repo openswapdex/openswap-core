@@ -264,7 +264,7 @@ contract OSWAP_HybridRouter is IOSWAP_HybridRouter {
                 hex'ff',
                 oracleFactory,
                 keccak256(abi.encodePacked(token0, token1)),
-                /*oracle*/hex'e7427618a9b3c31623a9436f246a9a9f6fd277abcd31a1da29066507a33ac911'
+                /*oracle*/hex'438708a640211f645719b872ad4bb446171a1c27aa29398d0442cecde1261d42'
             ))));
     }
     function isOraclePair(address target, address tokenA, address tokenB) internal view returns (bool) {

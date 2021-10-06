@@ -18,11 +18,11 @@ interface IOSWAP_OraclePair is IOSWAP_PausablePair {
     }
 
     event NewProvider(address indexed provider, uint256 index);
-    event AddLiquidity(address indexed provider, bool indexed direction, uint256 totalStaked, uint256 totalAmount, uint256 expire, bool enable);
-    event Replenish(address indexed provider, bool indexed direction, uint256 replenish, uint256 totalAmount, uint256 totalReserve, uint256 expire);
-    event RemoveLiquidity(address indexed provider, bool indexed direction, uint256 totalStaked, uint256 totalAmount, uint256 totalReserve, uint256 expire, bool enable);
+    event AddLiquidity(address indexed provider, bool indexed direction, uint256 staked, uint256 amount, uint256 newStakeBalance, uint256 newAmountBalance, uint256 expire, bool enable);
+    event Replenish(address indexed provider, bool indexed direction, uint256 amountIn, uint256 newAmountBalance, uint256 newReserveBalance, uint256 expire);
+    event RemoveLiquidity(address indexed provider, bool indexed direction, uint256 unstake, uint256 amountOut, uint256 reserveOut, uint256 newStakeBalance, uint256 newAmountBalance, uint256 newReserveBalance, uint256 expire, bool enable);
     event Swap(address indexed to, bool indexed direction, uint256 price, uint256 amountIn, uint256 amountOut, uint256 tradeFee, uint256 protocolFee);
-    event SwappedOneProvider(address indexed provider, bool indexed direction, uint256 amountOut, uint256 amountIn);
+    event SwappedOneProvider(address indexed provider, bool indexed direction, uint256 amountOut, uint256 amountIn, uint256 newAmountBalance, uint256 newCounterReserveBalance);
     event SetDelegator(address indexed provider, address delegator);
     event DelegatorPauseOffer(address indexed delegator, address indexed provider, bool indexed direction);
     event DelegatorResumeOffer(address indexed delegator, address indexed provider, bool indexed direction);
