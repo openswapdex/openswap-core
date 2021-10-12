@@ -68,7 +68,7 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         offers[true].push(Offer({
             provider: address(this),
             locked: true,
-            feePaid: 0,
+            allowAll: false,
             amount: 0,
             receiving: 0,
             restrictedPrice: 0,
@@ -78,7 +78,7 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         offers[false].push(Offer({
             provider: address(this),
             locked: true,
-            feePaid: 0,
+            allowAll: false,
             amount: 0,
             receiving: 0,
             restrictedPrice: 0,
@@ -107,7 +107,7 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         }
     }
 
-    function getOffers(bool direction, uint256 start, uint256 length) external override view returns (uint256[] memory index, address[] memory provider, bool[] memory locked, uint256[] memory feePaidAndReceiving, uint256[] memory amountAndPrice, uint256[] memory startDateAndExpire) {
+    function getOffers(bool direction, uint256 start, uint256 length) external override view returns (uint256[] memory index, address[] memory provider, bool[] memory lockedAndAllowAll, uint256[] memory receiving, uint256[] memory amountAndPrice, uint256[] memory startDateAndExpire) {
         return _showList(0, address(0), direction, start, length);
     }
 
@@ -128,6 +128,10 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
     function _safeTransfer(address token, address to, uint256 value) internal {
         (bool success, bytes memory data) = token.call(abi.encodeWithSelector(SELECTOR, to, value));
         require(success && (data.length == 0 || abi.decode(data, (bool))), 'TRANSFER_FAILED');
+    }
+    function _safeTransferFrom(address token, address from, address to, uint value) internal {
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, from, to, value));
+        require(success && (data.length == 0 || abi.decode(data, (bool))), 'TRANSFER_FROM_FAILED');
     }
 
     function _getSwappedAmount(bool direction, uint256 amountIn, address trader, uint256 index, address oracle, uint256 tradeFee) internal view returns (uint256 amountOut, uint256 price, uint256 tradeFeeCollected) {
@@ -161,14 +165,14 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
     function getProviderOfferIndexLength(address provider, bool direction) external view override returns (uint256 length) {
         return providerOfferIndex[direction][provider].length;
     }
-    function getTraderOffer(address trader, bool direction, uint256 start, uint256 length) external view override returns (uint256[] memory index, address[] memory provider, bool[] memory locked, uint256[] memory feePaidAndReceiving, uint256[] memory amountAndPrice, uint256[] memory startDateAndExpire) {
+    function getTraderOffer(address trader, bool direction, uint256 start, uint256 length) external view override returns (uint256[] memory index, address[] memory provider, bool[] memory lockedAndAllowAll, uint256[] memory receiving, uint256[] memory amountAndPrice, uint256[] memory startDateAndExpire) {
         return _showList(1, trader, direction, start, length);
     }  
 
-    function getProviderOffer(address _provider, bool direction, uint256 start, uint256 length) external view override returns (uint256[] memory index, address[] memory provider, bool[] memory locked, uint256[] memory feePaidAndReceiving, uint256[] memory amountAndPrice, uint256[] memory startDateAndExpire) {
+    function getProviderOffer(address _provider, bool direction, uint256 start, uint256 length) external view override returns (uint256[] memory index, address[] memory provider, bool[] memory lockedAndAllowAll, uint256[] memory receiving, uint256[] memory amountAndPrice, uint256[] memory startDateAndExpire) {
         return _showList(2, _provider, direction, start, length);
     }
-    function _showList(uint256 listType, address who, bool direction, uint256 start, uint256 length) internal view returns (uint256[] memory index, address[] memory provider, bool[] memory locked, uint256[] memory feePaidAndReceiving, uint256[] memory amountAndPrice, uint256[] memory startDateAndExpire) {
+    function _showList(uint256 listType, address who, bool direction, uint256 start, uint256 length) internal view returns (uint256[] memory index, address[] memory provider, bool[] memory lockedAndAllowAll, uint256[] memory receiving, uint256[] memory amountAndPrice, uint256[] memory startDateAndExpire) {
         uint256 tmpInt;
         uint256[] storage __list;
         if (listType == 0) {
@@ -191,9 +195,9 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
             }
             index = new uint256[](length);
             provider = new address[](length);
-            locked = new bool[](length);
+            receiving = new uint256[](length);
             tmpInt = length * 2;
-            feePaidAndReceiving = new uint256[](tmpInt);
+            lockedAndAllowAll = new bool[](tmpInt);
             amountAndPrice = new uint256[](tmpInt);
             startDateAndExpire = new uint256[](tmpInt);
             for (uint256 i ; i < length ; i++) {
@@ -205,9 +209,9 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
                 index[i] = tmpInt;
                 tmpInt =  i.add(length);
                 provider[i] = offer.provider;
-                locked[i] = offer.locked;
-                feePaidAndReceiving[i] = offer.feePaid;
-                feePaidAndReceiving[tmpInt] = offer.receiving;
+                lockedAndAllowAll[i] = offer.locked;
+                lockedAndAllowAll[tmpInt] = offer.allowAll;
+                receiving[i] = offer.receiving;
                 amountAndPrice[i] = offer.amount;
                 amountAndPrice[tmpInt] = offer.restrictedPrice;
                 startDateAndExpire[i] = offer.startDate;
@@ -215,16 +219,37 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
             }
         } else {
             provider = new address[](0);
-            locked = new bool[](0);
-            feePaidAndReceiving = amountAndPrice = startDateAndExpire = new uint256[](0);
+            lockedAndAllowAll = new bool[](0);
+            receiving = amountAndPrice = startDateAndExpire = new uint256[](0);
         }
     }
 
-    function addLiquidity(address provider, bool direction, uint256 index, uint256 feeIn, bool locked, uint256 restrictedPrice, uint256 startDate, uint256 expire) external override lock returns (uint256) {
+    function _collectFee(address provider, uint256 feeIn) internal {
+        if (msg.sender == provider) {
+            _safeTransferFrom(govToken, provider, address(this), feeIn);
+            feeBalance = feeBalance.add(feeIn);
+            lastGovBalance = lastGovBalance.add(feeIn);
+            if (govToken == token0)
+                lastToken0Balance = lastToken0Balance.add(feeIn);
+            if (govToken == token1)
+                lastToken1Balance = lastToken1Balance.add(feeIn);
+        } else {
+            uint256 balance = IERC20(govToken).balanceOf(address(this));
+            uint256 feeDiff = balance.sub(lastGovBalance);
+            require(feeDiff >= feeIn, "Not enough fee");
+            feeBalance = feeBalance.add(feeDiff);
+            lastGovBalance = balance;
+            if (govToken == token0)
+                lastToken0Balance = balance;
+            if (govToken == token1)
+                lastToken1Balance = balance;
+        }
+    }
+
+    function createOrder(address provider, bool direction, bool allowAll, uint256 restrictedPrice, uint256 startDate, uint256 expire) external override lock returns (uint256 index) {
         require(IOSWAP_RestrictedFactory(factory).isLive(), 'GLOBALLY PAUSED');
-        require(msg.sender == restrictedLiquidityProvider || msg.sender == provider, "Not from router or owner");
         require(isLive, "PAUSED");
-        require(provider != address(0), "Null address");
+        require(msg.sender == restrictedLiquidityProvider || msg.sender == provider, "Not from router or owner");
         require(expire >= startDate, "Already expired");
         require(expire >= block.timestamp, "Already expired");
         {
@@ -232,63 +257,54 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         require(expire <= block.timestamp + maxDur, "Expire too far away");
         }
 
+        index = (++counter[direction]);
+        providerOfferIndex[direction][provider].push(index);
+
+        offers[direction].push(Offer({
+            provider: provider,
+            locked: false,
+            allowAll: allowAll,
+            amount: 0,
+            receiving: 0,
+            restrictedPrice: restrictedPrice,
+            startDate: startDate,
+            expire: expire
+        }));
+
+        uint256 feeIn = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_ORDER));
+        _collectFee(provider, feeIn);
+
+        emit NewProviderOffer(provider, direction, index, allowAll, restrictedPrice, startDate, expire);
+    }
+    function addLiquidity(bool direction, uint256 index) external override lock {
+        require(IOSWAP_RestrictedFactory(factory).isLive(), 'GLOBALLY PAUSED');
+        require(isLive, "PAUSED");
+        Offer storage offer = offers[direction][index];
+        require(msg.sender == restrictedLiquidityProvider || msg.sender == offer.provider, "Not from router or owner");
+
         (uint256 newGovBalance, uint256 newToken0Balance, uint256 newToken1Balance) = getBalances();
-        require(newGovBalance.sub(lastGovBalance) >= feeIn, "Invalid feeIn");
-        feeBalance = feeBalance.add(feeIn);
+
         uint256 amountIn;
         if (direction) {
             amountIn = newToken1Balance.sub(lastToken1Balance);
-            if (govToken == token1)
-                amountIn = amountIn.sub(feeIn);
         } else {
             amountIn = newToken0Balance.sub(lastToken0Balance);
-            if (govToken == token0)
-                amountIn = amountIn.sub(feeIn);
         }
+        require(amountIn > 0, "No amount in");
 
-        if (index > 0) {
-            Offer storage offer = offers[direction][index];
-            require(offer.provider == provider, "Not from provider");
-
-            if (offer.restrictedPrice != restrictedPrice ||
-                offer.startDate != startDate ||
-                offer.expire != expire) {
-                if (offer.locked) {
-                    uint256 feePerOrder = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_ORDER));
-                    require(offer.feePaid < feePerOrder, "Order already locked");
-                }
-                offer.restrictedPrice = restrictedPrice;
-                offer.startDate = startDate;
-                offer.expire = expire;
-            }
-            offer.feePaid = offer.feePaid.add(feeIn);
-            offer.amount = offer.amount.add(amountIn);
-        } else {
-            index = (++counter[direction]);
-            providerOfferIndex[direction][provider].push(index);
-            require(amountIn > 0, "No amount in");
-
-            offers[direction].push(Offer({
-                provider: provider,
-                locked: locked,
-                feePaid: feeIn,
-                amount: amountIn,
-                receiving: 0,
-                restrictedPrice: restrictedPrice,
-                startDate: startDate,
-                expire: expire
-            }));
-
-            emit NewProviderOffer(provider, direction, index, locked);
-        }
+        offer.amount = offer.amount.add(amountIn);
 
         lastGovBalance = newGovBalance;
         lastToken0Balance = newToken0Balance;
         lastToken1Balance = newToken1Balance;
 
-        emit AddLiquidity(provider, direction, index, feeIn, amountIn, restrictedPrice, startDate, expire);
-
-        return index;
+        emit AddLiquidity(offer.provider, direction, index, amountIn);
+    }
+    function lockOffer(bool direction, uint256 index) external override {
+        Offer storage offer = offers[direction][index];
+        require(msg.sender == restrictedLiquidityProvider || msg.sender == offer.provider, "Not from router or owner");
+        offer.locked = true;
+        emit Lock(direction, index);
     }
 
     function removeLiquidity(address provider, bool direction, uint256 index, uint256 amountOut, uint256 receivingOut) external override lock {
@@ -331,9 +347,7 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         require(offer.provider == provider, "Not from provider");
 
         if (offer.locked) {
-            uint256 feePerOrder = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_ORDER));
-            if (offer.feePaid > feePerOrder)
-                require(offer.expire < block.timestamp, "Not expired");
+            require(offer.expire < block.timestamp, "Not expired");
         }
 
         offer.amount = offer.amount.sub(amountOut);
@@ -362,14 +376,22 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
             allocation = new uint256[](0);
         }
     }
+    function _checkApprovedTrader(bool direction, uint256 offerIndex, uint256 count) internal {
+        Offer storage offer = offers[direction][offerIndex]; 
+        require(msg.sender == restrictedLiquidityProvider || msg.sender == offer.provider, "Not from router or owner");
+        require(!offer.locked, "Offer locked");
+        require(!offer.allowAll, "Offer was set to allow all");
+        uint256 feePerTrader = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_TRADER));
+        _collectFee(offer.provider, feePerTrader.mul(count));
+    }
     function addApprovedTrader(bool direction, uint256 offerIndex, address trader, uint256 allocation) external override {
-        require(msg.sender == restrictedLiquidityProvider || msg.sender == offers[direction][offerIndex].provider, "Not from router or owner");
+        _checkApprovedTrader(direction, offerIndex, 1);
         _addApprovedTrader(direction, offerIndex, trader, allocation);
     }
     function addMultipleApprovedTrader(bool direction, uint256 offerIndex, address[] calldata trader, uint256[] calldata allocation) external override {
-        require(msg.sender == restrictedLiquidityProvider || msg.sender == offers[direction][offerIndex].provider, "Not from router or owner");
         uint256 length = trader.length;
         require(length == allocation.length, "length not match");
+        _checkApprovedTrader(direction, offerIndex, length);
         for (uint256 i = 0 ; i < length ; i++) {
             _addApprovedTrader(direction, offerIndex, trader[i], allocation[i]);
         }
@@ -380,7 +402,7 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
             isApprovedTrader[direction][offerIndex][trader] = true;
             traderOffer[direction][trader].push(offerIndex);
         }
-        traderAllocation[direction][offerIndex][trader] = traderAllocation[direction][offerIndex][trader].add(allocation);
+        traderAllocation[direction][offerIndex][trader] = allocation;
 
         emit ApprovedTrader(direction, offerIndex, trader, allocation);
     }
@@ -440,23 +462,18 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         require(list.length > 0, "Invalid offer list");
     }
 
-    function _swap2(bool direction, address trader, uint256 offerIdx, uint256 amountIn, address oracle, uint256[4] memory fee/*uint256 tradeFee, uint256 protocolFee, uint256 feePerOrder, uint256 feePerTrander*/) internal 
+    function _swap2(bool direction, address trader, uint256 offerIdx, uint256 amountIn, address oracle, uint256[2] memory fee/*uint256 tradeFee, uint256 protocolFee*/) internal 
         returns (uint256 amountOut, uint256 tradeFeeCollected, uint256 protocolFeeCollected) 
     {
         require(offerIdx <= counter[direction], "Offer not exist");
         Offer storage offer = offers[direction][offerIdx];
         {
         // check approved list
-        uint256 traderLen = approvedTrader[direction][offerIdx].length;
         require(
-            traderLen > 0 && 
+            offer.allowAll ||
             isApprovedTrader[direction][offerIdx][trader], 
         "Not a approved trader");
 
-        // check provider fee
-        uint256 feeRequired = fee[2].add(fee[3].mul(traderLen));
-        require(offer.feePaid >= feeRequired, "Insufficient fee");
-        
         // check offer period
         require(block.timestamp >= offer.startDate, "Offer not begin yet");
         require(block.timestamp <= offer.expire, "Offer expired");
@@ -487,10 +504,8 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
     function _swap(bool direction, uint256 amountIn, address trader/*, bytes calldata data*/) internal returns (uint256 totalOut, uint256 totalProtocolFeeCollected) {
         (uint256[] memory idxList, uint256[] memory amountList) = _decodeData(0xa4);
         address oracle;
-        uint256[4] memory fee;
+        uint256[2] memory fee;
         (oracle, fee[0], fee[1])  = IOSWAP_RestrictedFactory(factory).checkAndGetOracleSwapParams(token0, token1);
-        fee[2] = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_ORDER));
-        fee[3] = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_TRADER));
 
         uint256 totalIn;
         uint256 totalTradeFeeCollected;
@@ -498,7 +513,7 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
             totalIn = totalIn.add(amountList[index]);
             uint256[3] memory amount;
             uint256 thisIn = amountList[index].mul(amountIn).div(1e18);
-            (amount[0], amount[1], amount[2])/*(uint256 amountOut, uint256 tradeFeeCollected, uint256 protocolFeeCollected)*/ = _swap2(direction, trader, idxList[index], thisIn, oracle, fee/*tradeFee, protocolFee, feePerOrder, feePerTrader*/);
+            (amount[0], amount[1], amount[2])/*(uint256 amountOut, uint256 tradeFeeCollected, uint256 protocolFeeCollected)*/ = _swap2(direction, trader, idxList[index], thisIn, oracle, fee/*tradeFee, protocolFee*/);
             totalOut = totalOut.add(amount[0]);
             totalTradeFeeCollected = totalTradeFeeCollected.add(amount[1]);
             totalProtocolFeeCollected = totalProtocolFeeCollected.add(amount[2]);

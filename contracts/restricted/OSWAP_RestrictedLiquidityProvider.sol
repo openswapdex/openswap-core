@@ -3,19 +3,23 @@ pragma solidity =0.6.11;
 
 import './interfaces/IOSWAP_RestrictedLiquidityProvider.sol';
 import './interfaces/IOSWAP_RestrictedPair.sol';
-import './OSWAP_RestrictedPair.sol';
 import './interfaces/IOSWAP_RestrictedFactory.sol';
 import '../gov/interfaces/IOAXDEX_Governance.sol';
 import '../libraries/TransferHelper.sol';
 import '../libraries/SafeMath.sol';
 import '../interfaces/IWETH.sol';
+import './interfaces/IOSWAP_ConfigStore.sol';
 
 contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider {
     using SafeMath for uint256;
 
+    bytes32 constant FEE_PER_ORDER = "RestrictedPair.feePerOrder";
+    bytes32 constant FEE_PER_TRADER = "RestrictedPair.feePerTrader";
+
     address public immutable override factory;
     address public immutable override WETH;
     address public immutable override govToken;
+    address public immutable override configStore;
 
     modifier ensure(uint256 deadline) {
         require(deadline >= block.timestamp, 'EXPIRED');
@@ -26,6 +30,7 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
         factory = _factory;
         WETH = _WETH;
         govToken = IOAXDEX_Governance(IOSWAP_RestrictedFactory(_factory).governance()).oaxToken();
+        configStore = IOSWAP_RestrictedFactory(_factory).configStore();
     }
     
     receive() external payable {
@@ -48,9 +53,8 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
         bool addingTokenA,
         uint256 pairIndex,
         uint256 offerIndex,
-        uint256 feeIn,
         uint256 amountIn,
-        bool locked,
+        bool allowAll,
         uint256 restrictedPrice,
         uint256 startDate,
         uint256 expire,
@@ -58,31 +62,33 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
     ) public virtual override ensure(deadline) returns (address pair, uint256 _offerIndex) {
         pair = _getPair(tokenA, tokenB, pairIndex);
 
-        if (feeIn > 0)
-            TransferHelper.safeTransferFrom(govToken, msg.sender, pair, feeIn);
         if (amountIn > 0)
             TransferHelper.safeTransferFrom(addingTokenA ? tokenA : tokenB, msg.sender, pair, amountIn);
 
-        /*bool direction*/ addingTokenA = (tokenA < tokenB) ? !addingTokenA : addingTokenA;
-        _offerIndex = IOSWAP_RestrictedPair(pair).addLiquidity(msg.sender, /*direction*/addingTokenA, offerIndex, feeIn, locked, restrictedPrice, startDate, expire);
+        bool direction = (tokenA < tokenB) ? !addingTokenA : addingTokenA;
+
+        if (offerIndex == 0) {
+            uint256 feeIn = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_ORDER));
+            TransferHelper.safeTransferFrom(govToken, msg.sender, pair, feeIn);
+            offerIndex = IOSWAP_RestrictedPair(pair).createOrder(msg.sender, direction, allowAll, restrictedPrice, startDate, expire);
+        }
+        if (amountIn > 0)
+            IOSWAP_RestrictedPair(pair).addLiquidity(direction, offerIndex);
+        _offerIndex = offerIndex;
     }
     function addLiquidityETH(
         address tokenA,
         bool addingTokenA,
         uint256 pairIndex,
         uint256 offerIndex,
-        uint256 feeIn,
         uint256 amountAIn,
-        bool locked,
+        bool allowAll,
         uint256 restrictedPrice,
         uint256 startDate,
         uint256 expire,
         uint256 deadline
     ) public virtual override payable ensure(deadline) returns (/*bool direction, */address pair, uint256 _offerIndex) {
         pair = _getPair(tokenA, WETH, pairIndex);
-
-        if (feeIn > 0)
-            TransferHelper.safeTransferFrom(govToken, msg.sender, pair, feeIn);
 
         if (addingTokenA) {
             if (amountAIn > 0)
@@ -93,49 +99,24 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
             require(IWETH(WETH).transfer(pair, ETHIn), 'Transfer failed');
         }
         bool direction = (tokenA < WETH) ? !addingTokenA : addingTokenA;
-        _offerIndex = IOSWAP_RestrictedPair(pair).addLiquidity(msg.sender, direction, offerIndex, feeIn, locked, restrictedPrice, startDate, expire);
+
+        if (offerIndex == 0) {
+            uint256 feeIn = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_ORDER));
+            TransferHelper.safeTransferFrom(govToken, msg.sender, pair, feeIn);
+            offerIndex = IOSWAP_RestrictedPair(pair).createOrder(msg.sender, direction, allowAll, restrictedPrice, startDate, expire);
+        }
+        if (amountAIn > 0 || msg.value > 0)
+            IOSWAP_RestrictedPair(pair).addLiquidity(direction, offerIndex);
+        _offerIndex = offerIndex;
     }
 
-    function _addLiquidity(address tokenA, address tokenB, bool addingTokenA, uint256[12] calldata param) internal virtual 
+    function _addLiquidity(address tokenA, address tokenB, bool addingTokenA, uint256[11] calldata param) internal virtual 
         returns (address pair, uint256 offerIndex) 
     {
         (pair, offerIndex) = addLiquidity(
             tokenA,
             tokenB,
             addingTokenA,
-            param[3],
-            param[4],
-            param[5],
-            param[6],
-            param[7]==1,
-            param[8],
-            param[9],
-            param[10],
-            param[11]
-        );
-    }
-    function addLiquidityAndTrader(
-        uint256[12] calldata param, 
-        address[] calldata trader, 
-        uint256[] calldata allocation
-    ) external virtual override 
-        returns (address pair, uint256 offerIndex) 
-    {
-        require(param.length == 12, "Invalid param length");
-        address tokenA = address(bytes20(bytes32(param[0]<<96)));
-        address tokenB = address(bytes20(bytes32(param[1]<<96)));
-        bool b = param[2]==1; // addingTokenA
-        (pair, offerIndex) = _addLiquidity(tokenA, tokenB, b, param);
-        b = (tokenA < tokenB) ? !b : b; // direction
-        IOSWAP_RestrictedPair(pair).addMultipleApprovedTrader(b, offerIndex, trader, allocation);
-    }
-    function _addLiquidityETH(address tokenA, bool addingTokenA, uint256[11] calldata param) internal virtual
-        returns (address pair, uint256 offerIndex) 
-    {
-        (pair, offerIndex) = addLiquidityETH(
-            tokenA,
-            addingTokenA,
-            param[2],
             param[3],
             param[4],
             param[5],
@@ -146,18 +127,54 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
             param[10]
         );
     }
-    function addLiquidityETHAndTrader(
+    function addLiquidityAndTrader(
         uint256[11] calldata param, 
+        address[] calldata trader, 
+        uint256[] calldata allocation
+    ) external virtual override 
+        returns (address pair, uint256 offerIndex) 
+    {
+        require(param.length == 11, "Invalid param length");
+        address tokenA = address(bytes20(bytes32(param[0]<<96)));
+        address tokenB = address(bytes20(bytes32(param[1]<<96)));
+        bool b = param[2]==1; // addingTokenA
+        (pair, offerIndex) = _addLiquidity(tokenA, tokenB, b, param);
+        b = (tokenA < tokenB) ? !b : b; // direction
+        
+        uint256 feePerTrader = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_TRADER));
+        TransferHelper.safeTransferFrom(govToken, msg.sender, pair, feePerTrader.mul(trader.length));
+        IOSWAP_RestrictedPair(pair).addMultipleApprovedTrader(b, offerIndex, trader, allocation);
+    }
+    function _addLiquidityETH(address tokenA, bool addingTokenA, uint256[10] calldata param) internal virtual
+        returns (address pair, uint256 offerIndex) 
+    {
+        (pair, offerIndex) = addLiquidityETH(
+            tokenA,
+            addingTokenA,
+            param[2],
+            param[3],
+            param[4],
+            param[5]==1,
+            param[6],
+            param[7],
+            param[8],
+            param[9]
+        );
+    }
+    function addLiquidityETHAndTrader(
+        uint256[10] calldata param, 
         address[] calldata trader, 
         uint256[] calldata allocation
     ) external virtual override payable 
         returns (address pair, uint256 offerIndex) 
     {
-        require(param.length == 11, "Invalid param length");
+        require(param.length == 10, "Invalid param length");
         address tokenA = address(bytes20(bytes32(param[0]<<96)));
         bool b = param[1]==1; // addingTokenA
         (pair, offerIndex) = _addLiquidityETH(tokenA, b, param);
         b = (tokenA < WETH) ? !b : b; // direction
+        uint256 feePerTrader = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_TRADER));
+        TransferHelper.safeTransferFrom(govToken, msg.sender, pair, feePerTrader.mul(trader.length));
         IOSWAP_RestrictedPair(pair).addMultipleApprovedTrader(b, offerIndex, trader, allocation);
     }
 
@@ -259,7 +276,7 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
                 hex'ff',    
                 factory,
                 keccak256(abi.encodePacked(token0, token1, index)),
-                /*restricted*/hex'4ed54ac02ae66d9d5dfbe24eeb3325cf9eae43ca2cf2896e8e61df264e71f65f' // restricted init code hash
+                /*restricted*/hex'7f7e3edb8d4b8f12daa763f526bd7fa787043cec419d2bf3d9f8168f45fb4f3f' // restricted init code hash
             ))));
     }
 

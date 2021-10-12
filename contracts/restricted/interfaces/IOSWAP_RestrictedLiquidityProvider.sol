@@ -6,6 +6,7 @@ interface IOSWAP_RestrictedLiquidityProvider {
     function factory() external view returns (address);
     function WETH() external view returns (address);
     function govToken() external view returns (address);
+    function configStore() external view returns (address);
 
     // **** ADD LIQUIDITY ****
     function addLiquidity(
@@ -14,7 +15,6 @@ interface IOSWAP_RestrictedLiquidityProvider {
         bool addingTokenA,
         uint256 pairIndex,
         uint256 offerIndex,
-        uint256 feeIn,
         uint256 amountIn,
         bool locked,
         uint256 restrictedPrice,
@@ -27,7 +27,6 @@ interface IOSWAP_RestrictedLiquidityProvider {
         bool addingTokenA,
         uint256 pairIndex,
         uint256 offerIndex,
-        uint256 feeIn,
         uint256 amountAIn,
         bool locked,
         uint256 restrictedPrice,
@@ -36,12 +35,12 @@ interface IOSWAP_RestrictedLiquidityProvider {
         uint256 deadline
     ) external payable returns (address pair, uint256 _offerIndex);
     function addLiquidityAndTrader(
-        uint256[12] calldata param, 
+        uint256[11] calldata param, 
         address[] calldata trader, 
         uint256[] calldata allocation
     ) external returns (address pair, uint256 offerIndex);
     function addLiquidityETHAndTrader(
-        uint256[11] calldata param, 
+        uint256[10] calldata param, 
         address[] calldata trader, 
         uint256[] calldata allocation
     ) external payable returns (address pair, uint256 offerIndex);

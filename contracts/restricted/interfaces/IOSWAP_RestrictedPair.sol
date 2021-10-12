@@ -8,7 +8,7 @@ interface IOSWAP_RestrictedPair is IOSWAP_PausablePair {
     struct Offer {
         address provider;
         bool locked;
-        uint256 feePaid;
+        bool allowAll;
         uint256 amount;
         uint256 receiving;
         uint256 restrictedPrice;
@@ -16,8 +16,9 @@ interface IOSWAP_RestrictedPair is IOSWAP_PausablePair {
         uint256 expire;
     } 
 
-    event NewProviderOffer(address indexed provider, bool indexed direction, uint256 index, bool locked);
-    event AddLiquidity(address indexed provider, bool indexed direction, uint256 indexed index, uint256 feePaid, uint256 amount, uint256 restrictedPrice, uint256 startDate, uint256 expire);
+    event NewProviderOffer(address indexed provider, bool indexed direction, uint256 index, bool allowAll, uint256 restrictedPrice, uint256 startDate, uint256 expire);
+    event AddLiquidity(address indexed provider, bool indexed direction, uint256 indexed index, uint256 amount);
+    event Lock(bool indexed direction, uint256 indexed index);
     event RemoveLiquidity(address indexed provider, bool indexed direction, uint256 indexed index, uint256 amountOut, uint256 receivingOut);
     event Swap(address indexed to, bool indexed direction, uint256 amountIn, uint256 amountOut, uint256 tradeFee, uint256 protocolFee);
     event SwappedOneOffer(address indexed provider, bool indexed direction, uint256 indexed index, uint256 price, uint256 amountOut, uint256 amountIn);
@@ -28,7 +29,7 @@ interface IOSWAP_RestrictedPair is IOSWAP_PausablePair {
     function offers(bool direction, uint256 i) external view returns (
         address provider,
         bool locked,
-        uint256 feePaid,
+        bool allowAll,
         uint256 amount,
         uint256 receiving,
         uint256 restrictedPrice,
@@ -61,12 +62,12 @@ interface IOSWAP_RestrictedPair is IOSWAP_PausablePair {
     function initialize(address _token0, address _token1) external;
 
     function getProviderOfferIndexLength(address provider, bool direction) external view returns (uint256);
-    function getTraderOffer(address trader, bool direction, uint256 start, uint256 length) external view returns (uint256[] memory index, address[] memory provider, bool[] memory locked, uint256[] memory feePaidAndReceiving, uint256[] memory amountAndPrice, uint256[] memory startDateAndExpire);
-    function getProviderOffer(address _provider, bool direction, uint256 start, uint256 length) external view returns (uint256[] memory index, address[] memory provider, bool[] memory locked, uint256[] memory feePaidAndReceiving, uint256[] memory amountAndPrice, uint256[] memory startDateAndExpire);
+    function getTraderOffer(address trader, bool direction, uint256 start, uint256 length) external view returns (uint256[] memory index, address[] memory provider, bool[] memory lockedAndAllowAll, uint256[] memory receiving, uint256[] memory amountAndPrice, uint256[] memory startDateAndExpire);
+    function getProviderOffer(address _provider, bool direction, uint256 start, uint256 length) external view returns (uint256[] memory index, address[] memory provider, bool[] memory lockedAndAllowAll, uint256[] memory receiving, uint256[] memory amountAndPrice, uint256[] memory startDateAndExpire);
     function getApprovedTraderLength(bool direction, uint256 offerIndex) external view returns (uint256);
     function getApprovedTrader(bool direction, uint256 offerIndex, uint256 start, uint256 end) external view returns (address[] memory traders, uint256[] memory allocation);
 
-    function getOffers(bool direction, uint256 start, uint256 length) external view returns (uint256[] memory index, address[] memory provider, bool[] memory locked, uint256[] memory feePaidAndReceiving, uint256[] memory amountAndPrice, uint256[] memory startDateAndExpire);
+    function getOffers(bool direction, uint256 start, uint256 length) external view returns (uint256[] memory index, address[] memory provider, bool[] memory lockedAndAllowAll, uint256[] memory receiving, uint256[] memory amountAndPrice, uint256[] memory startDateAndExpire);
 
     function getLastBalances() external view returns (uint256, uint256);
     function getBalances() external view returns (uint256, uint256, uint256);
@@ -74,7 +75,9 @@ interface IOSWAP_RestrictedPair is IOSWAP_PausablePair {
     function getAmountOut(address tokenIn, uint256 amountIn, address trader, bytes calldata data) external view returns (uint256 amountOut);
     function getAmountIn(address tokenOut, uint256 amountOut, address trader, bytes calldata data) external view returns (uint256 amountIn);
 
-    function addLiquidity(address provider, bool direction, uint256 index, uint256 feeIn, bool locked, uint256 restrictedPrice, uint256 startDate, uint256 expire) external returns (uint256);
+    function createOrder(address provider, bool direction, bool allowAll, uint256 restrictedPrice, uint256 startDate, uint256 expire) external returns (uint256 index);
+    function addLiquidity(bool direction, uint256 index) external;
+    function lockOffer(bool direction, uint256 index) external;
     function removeLiquidity(address provider, bool direction, uint256 index, uint256 amountOut, uint256 receivingOut) external;
     function removeAllLiquidity(address provider) external returns (uint256 amount0, uint256 amount1);
     function removeAllLiquidity1D(address provider, bool direction) external returns (uint256 totalAmount, uint256 totalReceiving);

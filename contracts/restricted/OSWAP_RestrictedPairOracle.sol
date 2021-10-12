@@ -3,7 +3,7 @@ pragma solidity =0.6.11;
 
 import '../libraries/SafeMath.sol';
 import "../oracle/interfaces/IOSWAP_OracleAdaptor2.sol";
-import "./OSWAP_RestrictedPair.sol";
+import "./interfaces/IOSWAP_RestrictedPair.sol";
 // import "./interfaces/IOSWAP_ConfigStore.sol";
 
 contract OSWAP_RestrictedPairOracle is IOSWAP_OracleAdaptor2 {
@@ -23,7 +23,7 @@ contract OSWAP_RestrictedPairOracle is IOSWAP_OracleAdaptor2 {
     function getRatio(address from, address to, uint256 /*fromAmount*/, uint256 /*toAmount*/, address /*trader*/, bytes memory payload) external override view returns (uint256 numerator, uint256 denominator) {
         bool direction = from < to;
 
-        OSWAP_RestrictedPair pair = OSWAP_RestrictedPair(msg.sender);
+        IOSWAP_RestrictedPair pair = IOSWAP_RestrictedPair(msg.sender);
 
         uint256 index;
         assembly {
@@ -34,7 +34,7 @@ contract OSWAP_RestrictedPairOracle is IOSWAP_OracleAdaptor2 {
         return (restrictedPrice, WEI);
     }
     function getLatestPrice(address from, address to, bytes memory payload) external override view returns (uint256 price) {
-        OSWAP_RestrictedPair pair = OSWAP_RestrictedPair(msg.sender);
+        IOSWAP_RestrictedPair pair = IOSWAP_RestrictedPair(msg.sender);
         uint256 index;
         assembly {
             index := mload(add(payload, 0x20))
