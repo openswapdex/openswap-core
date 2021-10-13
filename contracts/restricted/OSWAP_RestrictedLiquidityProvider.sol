@@ -47,6 +47,18 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
             pair = pairFor(tokenA, tokenB, pairIndex);
         }
     }
+    function _checkOrder(
+        address pair,
+        bool direction, 
+        uint256 offerIndex,
+        bool allowAll,
+        uint256 restrictedPrice,
+        uint256 startDate,
+        uint256 expire
+    ) internal view {
+        (,,bool _allowAll,,,uint256 _restrictedPrice,uint256 _startDate,uint256 _expire) = IOSWAP_RestrictedPair(pair).offers(direction, offerIndex);
+        require(allowAll==_allowAll && restrictedPrice==_restrictedPrice && startDate==_startDate && expire==_expire, "order params not match");
+    }
     function addLiquidity(
         address tokenA,
         address tokenB,
@@ -71,9 +83,13 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
             uint256 feeIn = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_ORDER));
             TransferHelper.safeTransferFrom(govToken, msg.sender, pair, feeIn);
             offerIndex = IOSWAP_RestrictedPair(pair).createOrder(msg.sender, direction, allowAll, restrictedPrice, startDate, expire);
+        } else {
+            _checkOrder(pair, direction, offerIndex, allowAll, restrictedPrice, startDate, expire);
         }
+
         if (amountIn > 0)
             IOSWAP_RestrictedPair(pair).addLiquidity(direction, offerIndex);
+
         _offerIndex = offerIndex;
     }
     function addLiquidityETH(
@@ -104,9 +120,13 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
             uint256 feeIn = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_ORDER));
             TransferHelper.safeTransferFrom(govToken, msg.sender, pair, feeIn);
             offerIndex = IOSWAP_RestrictedPair(pair).createOrder(msg.sender, direction, allowAll, restrictedPrice, startDate, expire);
+        } else {
+            _checkOrder(pair, direction, offerIndex, allowAll, restrictedPrice, startDate, expire);
         }
+
         if (amountAIn > 0 || msg.value > 0)
             IOSWAP_RestrictedPair(pair).addLiquidity(direction, offerIndex);
+
         _offerIndex = offerIndex;
     }
 
