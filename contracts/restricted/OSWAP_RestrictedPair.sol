@@ -491,13 +491,16 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         }
 
         // check allocation
-        uint256 alloc = traderAllocation[direction][offerIdx][trader];
-        require(amountOut <= alloc, "Amount exceeded allocation");
+        if (!offer.allowAll) {
+            uint256 alloc = traderAllocation[direction][offerIdx][trader];
+            require(amountOut <= alloc, "Amount exceeded allocation");
+            traderAllocation[direction][offerIdx][trader] = alloc.sub(amountOut);
+        }
+
         require(amountOut <= offer.amount, "Amount exceeds available fund");
 
         offer.amount = offer.amount.sub(amountOut);
         offer.receiving = offer.receiving.add(amountInWithProtocolFee);
-        traderAllocation[direction][offerIdx][trader] = alloc.sub(amountOut);
 
         emit SwappedOneOffer(offer.provider, direction, offerIdx, price, amountOut, amountInWithProtocolFee);
     }
