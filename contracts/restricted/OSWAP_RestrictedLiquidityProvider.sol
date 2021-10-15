@@ -57,7 +57,7 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
         uint256 expire
     ) internal view {
         (,,bool _allowAll,,,uint256 _restrictedPrice,uint256 _startDate,uint256 _expire) = IOSWAP_RestrictedPair(pair).offers(direction, offerIndex);
-        require(allowAll==_allowAll && restrictedPrice==_restrictedPrice && startDate==_startDate && expire==_expire, "order params not match");
+        require(allowAll==_allowAll && restrictedPrice==_restrictedPrice && startDate==_startDate && expire==_expire, "Order params not match");
     }
     function addLiquidity(
         address tokenA,
@@ -74,9 +74,6 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
     ) public virtual override ensure(deadline) returns (address pair, uint256 _offerIndex) {
         pair = _getPair(tokenA, tokenB, pairIndex);
 
-        if (amountIn > 0)
-            TransferHelper.safeTransferFrom(addingTokenA ? tokenA : tokenB, msg.sender, pair, amountIn);
-
         bool direction = (tokenA < tokenB) ? !addingTokenA : addingTokenA;
 
         if (offerIndex == 0) {
@@ -87,8 +84,10 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
             _checkOrder(pair, direction, offerIndex, allowAll, restrictedPrice, startDate, expire);
         }
 
-        if (amountIn > 0)
+        if (amountIn > 0) {
+            TransferHelper.safeTransferFrom(addingTokenA ? tokenA : tokenB, msg.sender, pair, amountIn);
             IOSWAP_RestrictedPair(pair).addLiquidity(direction, offerIndex);
+        }
 
         _offerIndex = offerIndex;
     }
@@ -106,14 +105,6 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
     ) public virtual override payable ensure(deadline) returns (/*bool direction, */address pair, uint256 _offerIndex) {
         pair = _getPair(tokenA, WETH, pairIndex);
 
-        if (addingTokenA) {
-            if (amountAIn > 0)
-                TransferHelper.safeTransferFrom(tokenA, msg.sender, pair, amountAIn);
-        } else {
-            uint256 ETHIn = msg.value;
-            IWETH(WETH).deposit{value: ETHIn}();
-            require(IWETH(WETH).transfer(pair, ETHIn), 'Transfer failed');
-        }
         bool direction = (tokenA < WETH) ? !addingTokenA : addingTokenA;
 
         if (offerIndex == 0) {
@@ -124,6 +115,14 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
             _checkOrder(pair, direction, offerIndex, allowAll, restrictedPrice, startDate, expire);
         }
 
+        if (addingTokenA) {
+            if (amountAIn > 0)
+                TransferHelper.safeTransferFrom(tokenA, msg.sender, pair, amountAIn);
+        } else {
+            uint256 ETHIn = msg.value;
+            IWETH(WETH).deposit{value: ETHIn}();
+            require(IWETH(WETH).transfer(pair, ETHIn), 'Transfer failed');
+        }
         if (amountAIn > 0 || msg.value > 0)
             IOSWAP_RestrictedPair(pair).addLiquidity(direction, offerIndex);
 
@@ -296,7 +295,7 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
                 hex'ff',    
                 factory,
                 keccak256(abi.encodePacked(token0, token1, index)),
-                /*restricted*/hex'7f7e3edb8d4b8f12daa763f526bd7fa787043cec419d2bf3d9f8168f45fb4f3f' // restricted init code hash
+                /*restricted*/hex'32898ef164db0b35c2fb33dc60281df03ce0ac20b9641bea31cbf5e35e1451e4' // restricted init code hash
             ))));
     }
 
