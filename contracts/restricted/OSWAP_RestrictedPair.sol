@@ -298,7 +298,7 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         lastToken0Balance = newToken0Balance;
         lastToken1Balance = newToken1Balance;
 
-        emit AddLiquidity(offer.provider, direction, index, amountIn);
+        emit AddLiquidity(offer.provider, direction, index, amountIn, offer.amount);
     }
     function lockOffer(bool direction, uint256 index) external override {
         Offer storage offer = offers[direction][index];
@@ -353,7 +353,7 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         offer.amount = offer.amount.sub(amountOut);
         offer.receiving = offer.receiving.sub(receivingOut);
 
-        emit RemoveLiquidity(provider, direction, index, amountOut, receivingOut);
+        emit RemoveLiquidity(provider, direction, index, amountOut, receivingOut, offer.amount, offer.receiving);
     }
 
     function getApprovedTraderLength(bool direction, uint256 offerIndex) external override view returns (uint256) {
@@ -502,7 +502,7 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         offer.amount = offer.amount.sub(amountOut);
         offer.receiving = offer.receiving.add(amountInWithProtocolFee);
 
-        emit SwappedOneOffer(offer.provider, direction, offerIdx, price, amountOut, amountInWithProtocolFee);
+        emit SwappedOneOffer(offer.provider, direction, offerIdx, price, amountOut, amountInWithProtocolFee, offer.amount, offer.receiving);
     }
     function _swap(bool direction, uint256 amountIn, address trader/*, bytes calldata data*/) internal returns (uint256 totalOut, uint256 totalProtocolFeeCollected) {
         (uint256[] memory idxList, uint256[] memory amountList) = _decodeData(0xa4);
