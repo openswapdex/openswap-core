@@ -346,7 +346,7 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         Offer storage offer = offers[direction][index]; 
         require(offer.provider == provider, "Not from provider");
 
-        if (offer.locked) {
+        if (offer.locked && amountOut > 0) {
             require(offer.expire < block.timestamp, "Not expired");
         }
 
