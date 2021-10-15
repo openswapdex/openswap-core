@@ -384,19 +384,19 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         uint256 feePerTrader = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_TRADER));
         _collectFee(offer.provider, feePerTrader.mul(count));
     }
-    function addApprovedTrader(bool direction, uint256 offerIndex, address trader, uint256 allocation) external override {
+    function setApprovedTrader(bool direction, uint256 offerIndex, address trader, uint256 allocation) external override {
         _checkApprovedTrader(direction, offerIndex, 1);
-        _addApprovedTrader(direction, offerIndex, trader, allocation);
+        _setApprovedTrader(direction, offerIndex, trader, allocation);
     }
-    function addMultipleApprovedTrader(bool direction, uint256 offerIndex, address[] calldata trader, uint256[] calldata allocation) external override {
+    function setMultipleApprovedTraders(bool direction, uint256 offerIndex, address[] calldata trader, uint256[] calldata allocation) external override {
         uint256 length = trader.length;
         require(length == allocation.length, "length not match");
         _checkApprovedTrader(direction, offerIndex, length);
         for (uint256 i = 0 ; i < length ; i++) {
-            _addApprovedTrader(direction, offerIndex, trader[i], allocation[i]);
+            _setApprovedTrader(direction, offerIndex, trader[i], allocation[i]);
         }
     }
-    function _addApprovedTrader(bool direction, uint256 offerIndex, address trader, uint256 allocation) internal {
+    function _setApprovedTrader(bool direction, uint256 offerIndex, address trader, uint256 allocation) internal {
         if (!isApprovedTrader[direction][offerIndex][trader]){
             approvedTrader[direction][offerIndex].push(trader);
             isApprovedTrader[direction][offerIndex][trader] = true;
@@ -480,14 +480,14 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         }
 
         uint256 price;
-        uint256 amountInWithProtocolFee;
+        uint256 amountInWithholdProtocolFee;
         (amountOut, price, tradeFeeCollected) = _getSwappedAmount(direction, amountIn, trader, offerIdx, oracle, fee[0]);
 
         if (fee[1] == 0) {
-            amountInWithProtocolFee = amountIn;
+            amountInWithholdProtocolFee = amountIn;
         } else {
             protocolFeeCollected = tradeFeeCollected.mul(fee[1]).div(FEE_BASE);
-            amountInWithProtocolFee = amountIn.sub(protocolFeeCollected);
+            amountInWithholdProtocolFee = amountIn.sub(protocolFeeCollected);
         }
 
         // check allocation
@@ -500,9 +500,9 @@ contract OSWAP_RestrictedPair is IOSWAP_RestrictedPair, OSWAP_PausablePair {
         require(amountOut <= offer.amount, "Amount exceeds available fund");
 
         offer.amount = offer.amount.sub(amountOut);
-        offer.receiving = offer.receiving.add(amountInWithProtocolFee);
+        offer.receiving = offer.receiving.add(amountInWithholdProtocolFee);
 
-        emit SwappedOneOffer(offer.provider, direction, offerIdx, price, amountOut, amountInWithProtocolFee, offer.amount, offer.receiving);
+        emit SwappedOneOffer(offer.provider, direction, offerIdx, price, amountOut, amountInWithholdProtocolFee, offer.amount, offer.receiving);
     }
     function _swap(bool direction, uint256 amountIn, address trader/*, bytes calldata data*/) internal returns (uint256 totalOut, uint256 totalProtocolFeeCollected) {
         (uint256[] memory idxList, uint256[] memory amountList) = _decodeData(0xa4);

@@ -82,8 +82,8 @@ interface IOSWAP_RestrictedPair is IOSWAP_PausablePair {
     function removeAllLiquidity(address provider) external returns (uint256 amount0, uint256 amount1);
     function removeAllLiquidity1D(address provider, bool direction) external returns (uint256 totalAmount, uint256 totalReceiving);
 
-    function addApprovedTrader(bool direction, uint256 offerIndex, address trader, uint256 allocation) external;
-    function addMultipleApprovedTrader(bool direction, uint256 offerIndex, address[] calldata trader, uint256[] calldata allocation) external;
+    function setApprovedTrader(bool direction, uint256 offerIndex, address trader, uint256 allocation) external;
+    function setMultipleApprovedTraders(bool direction, uint256 offerIndex, address[] calldata trader, uint256[] calldata allocation) external;
 
     function swap(uint256 amount0Out, uint256 amount1Out, address to, address trader, bytes calldata data) external;
 

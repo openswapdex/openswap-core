@@ -162,7 +162,7 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
         
         uint256 feePerTrader = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_TRADER));
         TransferHelper.safeTransferFrom(govToken, msg.sender, pair, feePerTrader.mul(trader.length));
-        IOSWAP_RestrictedPair(pair).addMultipleApprovedTrader(b, offerIndex, trader, allocation);
+        IOSWAP_RestrictedPair(pair).setMultipleApprovedTraders(b, offerIndex, trader, allocation);
     }
     function _addLiquidityETH(address tokenA, bool addingTokenA, uint256[10] calldata param) internal virtual
         returns (address pair, uint256 offerIndex) 
@@ -194,7 +194,7 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
         b = (tokenA < WETH) ? !b : b; // direction
         uint256 feePerTrader = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_TRADER));
         TransferHelper.safeTransferFrom(govToken, msg.sender, pair, feePerTrader.mul(trader.length));
-        IOSWAP_RestrictedPair(pair).addMultipleApprovedTrader(b, offerIndex, trader, allocation);
+        IOSWAP_RestrictedPair(pair).setMultipleApprovedTraders(b, offerIndex, trader, allocation);
     }
 
     // **** REMOVE LIQUIDITY ****
@@ -295,7 +295,7 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
                 hex'ff',    
                 factory,
                 keccak256(abi.encodePacked(token0, token1, index)),
-                /*restricted*/hex'a5ac8c4398d709237fb6b4fc0d71fd5fa497850449c28255f3eff114d1e130a4' // restricted init code hash
+                /*restricted*/hex'4b0218ad658fd16b26a314d9bb11304340b61c68be30b5b14dbdaed3d789c73f' // restricted init code hash
             ))));
     }
 
