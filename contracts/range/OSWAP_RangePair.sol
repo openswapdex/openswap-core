@@ -201,11 +201,11 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
         require(lowerLimit <= upperLimit, "Invalid limit");
         require(expire >= startDate, "Already expired");
         require(expire >= block.timestamp, "Already expired");
-
+        uint256 amountIn;
+        {
         (uint256 newGovBalance, uint256 newToken0Balance, uint256 newToken1Balance) = getBalances();
         require(newGovBalance.sub(lastGovBalance) >= staked, "Invalid feeIn");
         stakeBalance = stakeBalance.add(staked);
-        uint256 amountIn;
         if (direction) {
             amountIn = newToken1Balance.sub(lastToken1Balance);
             if (govToken == token1)
@@ -216,11 +216,18 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
                 amountIn = amountIn.sub(staked);
         }
 
+        lastGovBalance = newGovBalance;
+        lastToken0Balance = newToken0Balance;
+        lastToken1Balance = newToken1Balance;
+        }
+
         providerStaking[provider] = providerStaking[provider].add(staked);
+        uint256 newStakeBalance; uint256 newAmountBalance;
+        newStakeBalance = providerStaking[provider];
         index = providerOfferIndex[provider];
         if (index > 0) {
             Offer storage offer = offers[direction][index];
-            offer.amount = offer.amount.add(amountIn);
+            newAmountBalance = offer.amount = offer.amount.add(amountIn);
             offer.lowerLimit = lowerLimit;
             offer.upperLimit = upperLimit;
             offer.startDate = startDate;
@@ -251,14 +258,12 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
                 privateReplenish: true
             }));
 
+            newAmountBalance = amountIn;
+
             emit NewProvider(provider, index);
         }
 
-        lastGovBalance = newGovBalance;
-        lastToken0Balance = newToken0Balance;
-        lastToken1Balance = newToken1Balance;
-
-        emit AddLiquidity(provider, direction, staked, amountIn, lowerLimit, upperLimit, startDate, expire);
+        emit AddLiquidity(provider, direction, staked, amountIn, newStakeBalance, newAmountBalance, lowerLimit, upperLimit, startDate, expire);
     }
     function replenish(address provider, bool direction, uint256 amountIn) external override lock {
         uint256 index = providerOfferIndex[provider];
@@ -271,7 +276,7 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
         offer.amount = offer.amount.add(amountIn);
         offer.reserve = offer.reserve.sub(amountIn);
 
-        emit Replenish(provider, direction, amountIn);
+        emit Replenish(provider, direction, amountIn, offer.amount, offer.reserve);
     }
     function updateProviderOffer(address provider, bool direction, uint256 replenishAmount, uint256 lowerLimit, uint256 upperLimit, uint256 startDate, uint256 expire, bool privateReplenish) external override {
         require(msg.sender == rangeLiquidityProvider || msg.sender == provider, "Not from router or owner");
@@ -307,6 +312,7 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
             stakeBalance = stakeBalance.sub(unstake);
             _safeTransfer(govToken, msg.sender, unstake); // optimistically transfer tokens
         }
+        uint256 newStakeBalance = providerStaking[provider];
 
         Offer storage offer = offers[direction][index]; 
         offer.amount = offer.amount.sub(amountOut);
@@ -319,7 +325,7 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
         if (amountOut > 0 || reserveOut > 0)
             _safeTransfer(direction ? token1 : token0, msg.sender, amountOut.add(reserveOut)); // optimistically transfer tokens
 
-        emit RemoveLiquidity(provider, direction, unstake, amountOut, reserveOut, lowerLimit, upperLimit, startDate, expire);
+        emit RemoveLiquidity(provider, direction, unstake, amountOut, reserveOut, newStakeBalance, offer.amount, offer.reserve, lowerLimit, upperLimit, startDate, expire);
 
         _sync();
     }
@@ -396,36 +402,36 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
 
         uint256 remainOut = amountOut;
         {
+        bool _direction = direction;
         uint256 index = 0;
         while (remainOut > 0 && index < list.length) {
             require(list[index] <= counter, "Offer not exist");
-            Offer storage offer = offers[direction][list[index]];
+            Offer storage offer = offers[_direction][list[index]];
             if (((offer.lowerLimit <= price && price <= offer.upperLimit)||
                  (offer.lowerLimit == 0 && offer.upperLimit == 0)) && 
                 block.timestamp >= offer.startDate &&  
-                block.timestamp <= offer.expire) {
-
+                block.timestamp <= offer.expire)
+            {
                 uint256 providerShare;
-                {
                 uint256 amount = offer.amount;
+                uint256 newAmountBalance;
 
                 if (remainOut >= amount) {
                     // amount requested cover whole entry, clear entry
                     remainOut = remainOut.sub(amount);
-                    offer.amount = 0;
+                    newAmountBalance = offer.amount = 0;
                 } else {
                     amount = remainOut;
-                    offer.amount = offer.amount.sub(remainOut);
+                    newAmountBalance = offer.amount = offer.amount.sub(remainOut);
                     remainOut = 0;
                 }
                 providerShare = IOSWAP_RangeFactory(factory).getLiquidityProviderShare(providerStaking[offer.provider]);
                 providerShare = tradeFeeCollected.mul(amount).mul(providerShare).div(amountOut.mul(FEE_BASE));
                 protocolFeeCollected = protocolFeeCollected.sub(providerShare);
                 providerShare = amountInMinusProtocolFee.mul(amount).div(amountOut).add(providerShare);
-                emit SwappedOneProvider(offer.provider, direction, amount, providerShare);
-                }
-                offer = offers[!direction][list[index]];
+                offer = offers[!_direction][list[index]];
                 offer.reserve = offer.reserve.add(providerShare);
+                emit SwappedOneProvider(offer.provider, _direction, amount, providerShare, newAmountBalance, offer.reserve);
             }
             index++;
         }

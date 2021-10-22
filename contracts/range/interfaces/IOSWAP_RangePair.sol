@@ -17,13 +17,13 @@ interface IOSWAP_RangePair is IOSWAP_PausablePair {
     } 
 
     event NewProvider(address indexed provider, uint256 index);
-    event AddLiquidity(address indexed provider, bool indexed direction, uint256 staked, uint256 amount, uint256 lowerLimit, uint256 upperLimit, uint256 startDate, uint256 expire);
-    event Replenish(address indexed provider, bool indexed direction, uint256 amountIn);
+    event AddLiquidity(address indexed provider, bool indexed direction, uint256 staked, uint256 amount, uint256 newStakeBalance, uint256 newAmountBalance, uint256 lowerLimit, uint256 upperLimit, uint256 startDate, uint256 expire);
+    event Replenish(address indexed provider, bool indexed direction, uint256 amountIn, uint256 newAmountBalance, uint256 newReserveBalance);
     event UpdateProviderOffer(address indexed provider, bool indexed direction, uint256 replenish, uint256 lowerLimit, uint256 upperLimit, uint256 startDate, uint256 expire, bool privateReplenish);
-    event RemoveLiquidity(address indexed provider, bool indexed direction, uint256 unstake, uint256 amountOut, uint256 reserveOut, uint256 lowerLimit, uint256 upperLimit, uint256 startDate, uint256 expire);
+    event RemoveLiquidity(address indexed provider, bool indexed direction, uint256 unstake, uint256 amountOut, uint256 reserveOut, uint256 newStakeBalance, uint256 newAmountBalance, uint256 newReserveBalance, uint256 lowerLimit, uint256 upperLimit, uint256 startDate, uint256 expire);
     event RemoveAllLiquidity(address indexed provider, uint256 unstake, uint256 amount0Out, uint256 amount1Out);
     event Swap(address indexed to, bool indexed direction, uint256 price, uint256 amountIn, uint256 amountOut, uint256 tradeFee, uint256 protocolFee);
-    event SwappedOneProvider(address indexed provider, bool indexed direction, uint256 amountOut, uint256 amountIn);
+    event SwappedOneProvider(address indexed provider, bool indexed direction, uint256 amountOut, uint256 amountIn, uint256 newAmountBalance, uint256 newCounterReserveBalance);
 
     function counter() external view returns (uint256);
     function offers(bool direction, uint256 index) external view returns (
