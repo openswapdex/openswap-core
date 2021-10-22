@@ -259,7 +259,7 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
         lastToken1Balance = newToken1Balance;
 
         Offer storage offer = offers[direction][index];
-        emit AddLiquidity(provider, direction, staked, amountIn, lowerLimit, upperLimit, startDate, providerStaking[provider], offer.amount, expire);
+        emit AddLiquidity(provider, direction, staked, amountIn, lowerLimit, upperLimit, providerStaking[provider], offer.amount, startDate, expire);
     }
     function replenish(address provider, bool direction, uint256 amountIn) external override lock {
         uint256 index = providerOfferIndex[provider];
@@ -398,9 +398,11 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
         uint256 remainOut = amountOut;
         {
         uint256 index = 0;
+        Offer storage offer;
+        Offer storage counteroffer;        
         while (remainOut > 0 && index < list.length) {
             require(list[index] <= counter, "Offer not exist");
-            Offer storage offer = offers[direction][list[index]];
+            offer = offers[direction][list[index]];
             if (((offer.lowerLimit <= price && price <= offer.upperLimit)||
                  (offer.lowerLimit == 0 && offer.upperLimit == 0)) && 
                 block.timestamp >= offer.startDate &&  
@@ -422,9 +424,9 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
                 protocolFeeCollected = protocolFeeCollected.sub(providerShare);
                 providerShare = amountInMinusProtocolFee.mul(amount).div(amountOut).add(providerShare);
                 
-                offer = offers[!direction][list[index]];
-                offer.reserve = offer.reserve.add(providerShare);
-                emit SwappedOneProvider(offer.provider, direction, amount, providerShare, offer.amount, offer.reserve);
+                counteroffer = offers[!direction][list[index]];
+                counteroffer.reserve = counteroffer.reserve.add(providerShare);
+                emit SwappedOneProvider(offer.provider, direction, amount, providerShare, offer.amount, counteroffer.reserve);
             }
             index++;
         }
