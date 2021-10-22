@@ -297,7 +297,7 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
         offer.expire = expire;
         offer.privateReplenish = privateReplenish;
 
-        emit UpdateProviderOffer(msg.sender, direction, replenishAmount, lowerLimit, upperLimit, startDate, expire, privateReplenish);
+        emit UpdateProviderOffer(msg.sender, direction, replenishAmount, offer.amount, offer.reserve, lowerLimit, upperLimit, startDate, expire, privateReplenish);
     }
     function removeLiquidity(address provider, bool direction, uint256 unstake, uint256 amountOut, uint256 reserveOut, uint256 lowerLimit, uint256 upperLimit, uint256 startDate, uint256 expire) external override lock {
         require(msg.sender == rangeLiquidityProvider || msg.sender == provider, "Not from router or owner");
