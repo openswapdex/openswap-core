@@ -258,7 +258,8 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
         lastToken0Balance = newToken0Balance;
         lastToken1Balance = newToken1Balance;
 
-        emit AddLiquidity(provider, direction, staked, amountIn, lowerLimit, upperLimit, startDate, expire);
+        Offer storage offer = offers[direction][index];
+        emit AddLiquidity(provider, direction, staked, amountIn, lowerLimit, upperLimit, startDate, providerStaking[provider], offer.amount, expire);
     }
     function replenish(address provider, bool direction, uint256 amountIn) external override lock {
         uint256 index = providerOfferIndex[provider];
@@ -271,7 +272,7 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
         offer.amount = offer.amount.add(amountIn);
         offer.reserve = offer.reserve.sub(amountIn);
 
-        emit Replenish(provider, direction, amountIn);
+        emit Replenish(provider, direction, amountIn, offer.amount, offer.reserve);
     }
     function updateProviderOffer(address provider, bool direction, uint256 replenishAmount, uint256 lowerLimit, uint256 upperLimit, uint256 startDate, uint256 expire, bool privateReplenish) external override {
         require(msg.sender == rangeLiquidityProvider || msg.sender == provider, "Not from router or owner");
@@ -319,7 +320,7 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
         if (amountOut > 0 || reserveOut > 0)
             _safeTransfer(direction ? token1 : token0, msg.sender, amountOut.add(reserveOut)); // optimistically transfer tokens
 
-        emit RemoveLiquidity(provider, direction, unstake, amountOut, reserveOut, lowerLimit, upperLimit, startDate, expire);
+        emit RemoveLiquidity(provider, direction, unstake, amountOut, reserveOut, lowerLimit, upperLimit, providerStaking[provider], offer.amount, offer.reserve, startDate, expire);
 
         _sync();
     }
@@ -405,10 +406,8 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
                 block.timestamp >= offer.startDate &&  
                 block.timestamp <= offer.expire) {
 
-                uint256 providerShare;
-                {
+                uint256 providerShare;                
                 uint256 amount = offer.amount;
-
                 if (remainOut >= amount) {
                     // amount requested cover whole entry, clear entry
                     remainOut = remainOut.sub(amount);
@@ -422,10 +421,10 @@ contract OSWAP_RangePair is IOSWAP_RangePair, OSWAP_PausablePair {
                 providerShare = tradeFeeCollected.mul(amount).mul(providerShare).div(amountOut.mul(FEE_BASE));
                 protocolFeeCollected = protocolFeeCollected.sub(providerShare);
                 providerShare = amountInMinusProtocolFee.mul(amount).div(amountOut).add(providerShare);
-                emit SwappedOneProvider(offer.provider, direction, amount, providerShare);
-                }
+                
                 offer = offers[!direction][list[index]];
                 offer.reserve = offer.reserve.add(providerShare);
+                emit SwappedOneProvider(offer.provider, direction, amount, providerShare, offer.amount, offer.reserve);
             }
             index++;
         }
