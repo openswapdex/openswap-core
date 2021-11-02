@@ -13,7 +13,7 @@ For more details on the project, please refer to our [documents.](https://doc.op
 
 ## Audits
 
-The original set of smart contracts were audited by [CerTiK](https://www.certik.io/) in March 2021 with a second audit completed by [PeckShield](https://peckshield.com/en) on October 25, 2021.
+The original set of smart contracts were audited by [CerTiK](https://www.certik.io/) in March 2021 with a second audit completed by [PeckShield](https://peckshield.com/en) on October 25, 2021. You may review the final audit report [here](https://github.com/openswapdex/openswap-core/blob/master/audit/PeckShield-Audit-Report-OpenSwap-v1.0.pdf)
 
 ## Bug Bounty
 
