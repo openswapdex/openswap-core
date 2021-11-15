@@ -17,4 +17,4 @@ The original set of smart contracts were audited by [CerTiK](https://www.certik.
 
 ## Bug Bounty
 
-OpenSwap is working on a bug bounty program to be announced soon.
+The OpenSwap Bug Bounty program will provide offer up to $50,000 to anyone who finds viable and actionable security vulnerabilities in OpenSwap core smart contracts. Please go to our Bug Bounty Page at [Immunefi](https://immunefi.com/bounty/openswap/) for details.
