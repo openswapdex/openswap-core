@@ -240,9 +240,9 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
 
             uint256 typeCode = protocolTypeCode(pair[i]);
             address to = i < path.length - 2 ? pair[i + 1] : _to;
-            if (typeCode == 1) {
+            if (typeCode == 1 || typeCode == 4) {
+                { // scope to avoid stack too deep errors
                 IOSWAP_PairV1 _pair = IOSWAP_PairV1(pair[i]);
-                { // scope to avoid stack too deep errors
                 (uint reserve0, uint reserve1,) = _pair.getReserves();
                 (uint reserveInput, uint reserveOutput) = direction ? (reserve0, reserve1) : (reserve1, reserve0);
                 amountInput = amountInput.sub(reserveInput);
@@ -250,20 +250,14 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
                 amountOutput = getAmountOut(amountInput, reserveInput, reserveOutput, fee, feeBase);
                 }
                 (uint amount0Out, uint amount1Out) = direction ? (uint(0), amountOutput) : (amountOutput, uint(0));
-                _pair.swap(amount0Out, amount1Out, to, new bytes(0));
-            } 
-            else if (typeCode == 4) {
-                IOSWAP_PairV4 _pair = IOSWAP_PairV4(pair[i]);
-                { // scope to avoid stack too deep errors
-                (uint reserve0, uint reserve1,) = _pair.getReserves();
-                (uint reserveInput, uint reserveOutput) = direction ? (reserve0, reserve1) : (reserve1, reserve0);
-                amountInput = amountInput.sub(reserveInput);
-                (uint256 fee,uint256 feeBase) = IOSWAP_HybridRouterRegistry(registry).getFee(address(_pair));
-                amountOutput = getAmountOut(amountInput, reserveInput, reserveOutput, fee, feeBase);
+                
+                if (typeCode == 4) {
+                    IOSWAP_PairV4(pair[i]).swap(amount0Out, amount1Out, to);
                 }
-                (uint amount0Out, uint amount1Out) = direction ? (uint(0), amountOutput) : (amountOutput, uint(0));
-                _pair.swap(amount0Out, amount1Out, to);
-            }             
+                else {
+                    IOSWAP_PairV1(pair[i]).swap(amount0Out, amount1Out, to, new bytes(0));
+                }
+            }           
             else {
                 bytes memory next;
                 (offset, next) = cut(data, offset);
