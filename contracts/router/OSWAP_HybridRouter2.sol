@@ -30,6 +30,10 @@ interface IOSWAP_PairV3 {
     function swap(uint256 amount0Out, uint256 amount1Out, address to, address trader, bytes calldata data) external;
 }
 
+interface IOSWAP_PairV4 is IOSWAP_PairV1 {
+    function swap(uint256 amount0Out, uint256 amount1Out, address to) external;
+}
+
 contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
     using SafeMath for uint;
 
@@ -104,10 +108,14 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
                 IOSWAP_PairV2(pair[i]).swap(
                     amount0Out, amount1Out, to, dataChunks[i]
                 );
-            } else /*if (typeCode == 3)*/ {
+            } else if (typeCode == 3) {
                 IOSWAP_PairV3(pair[i]).swap(
                     amount0Out, amount1Out, to, msg.sender, dataChunks[i]
                 );
+            } else if (typeCode == 4) {
+                IOSWAP_PairV4(pair[i]).swap(
+                    amount0Out, amount1Out, to
+                );                
             }
         }
     }
@@ -242,7 +250,20 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
                 }
                 (uint amount0Out, uint amount1Out) = direction ? (uint(0), amountOutput) : (amountOutput, uint(0));
                 _pair.swap(amount0Out, amount1Out, to, new bytes(0));
-            } else {
+            } 
+            else if (typeCode == 4) {
+                IOSWAP_PairV4 _pair = IOSWAP_PairV4(pair[i]);
+                { // scope to avoid stack too deep errors
+                (uint reserve0, uint reserve1,) = _pair.getReserves();
+                (uint reserveInput, uint reserveOutput) = direction ? (reserve0, reserve1) : (reserve1, reserve0);
+                amountInput = amountInput.sub(reserveInput);
+                (uint256 fee,uint256 feeBase) = IOSWAP_HybridRouterRegistry(registry).getFee(address(_pair));
+                amountOutput = getAmountOut(amountInput, reserveInput, reserveOutput, fee, feeBase);
+                }
+                (uint amount0Out, uint amount1Out) = direction ? (uint(0), amountOutput) : (amountOutput, uint(0));
+                _pair.swap(amount0Out, amount1Out, to);
+            }             
+            else {
                 bytes memory next;
                 (offset, next) = cut(data, offset);
                 {
