@@ -154,11 +154,11 @@ contract OSWAP_HybridRouterRegistry is Ownable, IOSWAP_HybridRouterRegistry, IOA
         }
     }
     function registerPairByAddress(address _factory, address pairAddress) external override {
-        require(protocols[_factory].typeCode > 0 && protocols[_factory].typeCode < 3, "Protocol not regconized");
+        require(protocols[_factory].typeCode != 3, "Protocol not regconized");
         _registerPair(_factory, pairAddress);
     }
     function registerPairsByAddress(address _factory, address[] memory pairAddress) external override {
-        require(protocols[_factory].typeCode > 0 && protocols[_factory].typeCode < 3, "Protocol not regconized");
+        require(protocols[_factory].typeCode != 3, "Protocol not regconized");
         uint256 length = pairAddress.length;
         for (uint256 i = 0 ; i < length ; i++) {
             _registerPair(_factory, pairAddress[i]);
@@ -168,7 +168,7 @@ contract OSWAP_HybridRouterRegistry is Ownable, IOSWAP_HybridRouterRegistry, IOA
         uint256 length = pairAddress.length;
         require(length == _factory.length, "array length not match");
         for (uint256 i = 0 ; i < length ; i++) {
-            require(protocols[_factory[i]].typeCode > 0 && protocols[_factory[i]].typeCode < 3, "Protocol not regconized");
+            require(protocols[_factory[i]].typeCode != 3, "Protocol not regconized");
             _registerPair(_factory[i], pairAddress[i]);
         }
     }

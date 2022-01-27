@@ -30,7 +30,8 @@ interface IOSWAP_PairV3 {
     function swap(uint256 amount0Out, uint256 amount1Out, address to, address trader, bytes calldata data) external;
 }
 
-interface IOSWAP_PairV4 is IOSWAP_PairV1 {
+interface IOSWAP_PairV4 {
+    function getReserves() external view returns (uint112, uint112, uint32);
     function swap(uint256 amount0Out, uint256 amount1Out, address to) external;
 }
 
@@ -361,7 +362,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
     }
     function protocolTypeCode(address pair) internal view returns (uint256 typeCode) {
         typeCode =  IOSWAP_HybridRouterRegistry(registry).getTypeCode(pair);
-        require(typeCode > 0 && typeCode < 4, 'PAIR_NOT_REGCONIZED');
+        require(typeCode > 0 && typeCode < 5, 'PAIR_NOT_REGCONIZED');
     }
     // fetches and sorts the reserves for a pair
     function getReserves(address pair, address tokenA, address tokenB) internal view returns (uint reserveA, uint reserveB) {
@@ -427,7 +428,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         uint256 offset;
         for (uint i; i < path.length - 1; i++) {
             uint256 typeCode = protocolTypeCode(pair[i]);
-            if (typeCode == 1) {
+            if (typeCode == 1 || typeCode == 4) {
                 (uint reserveIn, uint reserveOut) = getReserves(pair[i], path[i], path[i + 1]);
                 (uint256 fee,uint256 feeBase) = IOSWAP_HybridRouterRegistry(registry).getFee(pair[i]);
                 amounts[i + 1] = getAmountOut(amounts[i], reserveIn, reserveOut, fee, feeBase);
@@ -455,7 +456,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         uint256 offset;
         for (uint i = path.length - 1; i > 0; i--) {
             uint256 typeCode = protocolTypeCode(pair[i - 1]);
-            if (typeCode == 1) {
+            if (typeCode == 1 || typeCode == 4) {
                 (uint reserveIn, uint reserveOut) = getReserves(pair[i - 1], path[i - 1], path[i]);
                 (uint256 fee,uint256 feeBase) = IOSWAP_HybridRouterRegistry(registry).getFee(pair[i - 1]);
                 amounts[i - 1] = getAmountIn(amounts[i], reserveIn, reserveOut, fee, feeBase);
