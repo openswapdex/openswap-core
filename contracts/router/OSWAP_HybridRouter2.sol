@@ -113,7 +113,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
                 IOSWAP_PairV3(pair[i]).swap(
                     amount0Out, amount1Out, to, msg.sender, dataChunks[i]
                 );
-            } else if (typeCode == 4) {
+            } else {
                 IOSWAP_PairV4(pair[i]).swap(
                     amount0Out, amount1Out, to
                 );                
