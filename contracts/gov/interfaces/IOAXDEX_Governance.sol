@@ -43,6 +43,7 @@ interface IOAXDEX_Governance {
     function votingConfigProfiles(uint256) external view returns (bytes32);
 
     function oaxToken() external view returns (address);
+    function votingToken() external view returns (address);
     function freezedStake(address) external view returns (uint256 amount, uint256 timestamp);
     function stakeOf(address) external view returns (uint256);
     function totalStake() external view returns (uint256);

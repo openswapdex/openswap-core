@@ -25,8 +25,8 @@ contract OAXDEX_Governance is IOAXDEX_Governance, Ownable {
     mapping (bytes32 => VotingConfig) public override votingConfigs;
 	bytes32[] public override votingConfigProfiles;
 
-    address public override oaxToken;
-    address public override votingToken;
+    address public immutable override oaxToken;
+    address public immutable override votingToken;
     mapping (address => NewStake) public override freezedStake;
     mapping (address => uint256) public override stakeOf;
     uint256 public override totalStake;
