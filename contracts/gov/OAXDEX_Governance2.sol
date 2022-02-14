@@ -26,6 +26,7 @@ contract OAXDEX_Governance is IOAXDEX_Governance, Ownable {
 	bytes32[] public override votingConfigProfiles;
 
     address public override oaxToken;
+    address public override votingToken;
     mapping (address => NewStake) public override freezedStake;
     mapping (address => uint256) public override stakeOf;
     uint256 public override totalStake;
@@ -43,6 +44,7 @@ contract OAXDEX_Governance is IOAXDEX_Governance, Ownable {
 
     constructor(
         address _oaxToken, 
+        address _votingToken, 
         bytes32[] memory _names,
         uint256[] memory _minExeDelay, 
         uint256[] memory _minVoteDuration, 
@@ -52,6 +54,7 @@ contract OAXDEX_Governance is IOAXDEX_Governance, Ownable {
         uint256 _minStakePeriod
     ) public {
         oaxToken = _oaxToken;
+        votingToken = _votingToken;
 
         require(_names.length == _minExeDelay.length && 
                 _minExeDelay.length == _minVoteDuration.length && 
@@ -186,8 +189,8 @@ contract OAXDEX_Governance is IOAXDEX_Governance, Ownable {
     }
 
     function stake(uint256 value) external override {
-        require(value <= IERC20(oaxToken).balanceOf(msg.sender), "Governance: insufficient balance");
-        TransferHelper.safeTransferFrom(oaxToken, msg.sender, address(this), value);
+        require(value <= IERC20(votingToken).balanceOf(msg.sender), "Governance: insufficient balance");
+        TransferHelper.safeTransferFrom(votingToken, msg.sender, address(this), value);
 
         NewStake storage newStake = freezedStake[msg.sender];
         newStake.amount = newStake.amount.add(value);
@@ -219,7 +222,7 @@ contract OAXDEX_Governance is IOAXDEX_Governance, Ownable {
             updateWeight(msg.sender);
             emit Unstake(msg.sender, value2);
         }
-        TransferHelper.safeTransfer(oaxToken, msg.sender, value);
+        TransferHelper.safeTransfer(votingToken, msg.sender, value);
     }
 
     function allVotings() external view override returns (address[] memory) {
