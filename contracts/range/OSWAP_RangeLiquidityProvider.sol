@@ -207,7 +207,7 @@ contract OSWAP_RangeLiquidityProvider is IOSWAP_RangeLiquidityProvider {
                 hex'ff',    
                 factory,
                 keccak256(abi.encodePacked(token0, token1)),
-                /*range*/hex'8d02b60dfd6f490abe0400620aae762fe5b7c24221126019182e4b0b5b84a056' // range init code hash
+                /*range*/hex'78dc6857442275f34e463f5001ada900e5a91ee4b7a78bf96df0472429dae422' // range init code hash
             ))));
     }
 }
