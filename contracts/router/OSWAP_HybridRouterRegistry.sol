@@ -125,7 +125,7 @@ contract OSWAP_HybridRouterRegistry is Ownable, IOSWAP_HybridRouterRegistry, IOA
         }
     }
     function registerPairByTokens(address _factory, address _token0, address _token1) external override {
-        require(protocols[_factory].typeCode > 0 && protocols[_factory].typeCode < 3, "Invalid type");
+        require(protocols[_factory].typeCode > 0 && protocols[_factory].typeCode != 3, "Invalid type");
         address pairAddress = IFactory(_factory).getPair(_token0, _token1);
         _registerPair(_factory, pairAddress);
     }
@@ -136,7 +136,7 @@ contract OSWAP_HybridRouterRegistry is Ownable, IOSWAP_HybridRouterRegistry, IOA
         _registerPair(_factory, pairAddress);
     }
     function registerPairsByTokens(address _factory, address[] calldata _token0, address[] calldata _token1) external override {
-        require(protocols[_factory].typeCode > 0 && protocols[_factory].typeCode < 3, "Invalid type");
+        require(protocols[_factory].typeCode > 0 && protocols[_factory].typeCode != 3, "Invalid type");
         uint256 length = _token0.length;
         require(length == _token1.length, "array length not match");
         for (uint256 i = 0 ; i < length ; i++) {
@@ -154,11 +154,11 @@ contract OSWAP_HybridRouterRegistry is Ownable, IOSWAP_HybridRouterRegistry, IOA
         }
     }
     function registerPairByAddress(address _factory, address pairAddress) external override {
-        require(protocols[_factory].typeCode != 3, "Protocol not regconized");
+        require(protocols[_factory].typeCode > 0 && protocols[_factory].typeCode != 3, "Protocol not regconized");
         _registerPair(_factory, pairAddress, true);
     }
     function registerPairsByAddress(address _factory, address[] memory pairAddress) external override {
-        require(protocols[_factory].typeCode != 3, "Protocol not regconized");
+        require(protocols[_factory].typeCode > 0 && protocols[_factory].typeCode != 3, "Protocol not regconized");
         uint256 length = pairAddress.length;
         for (uint256 i = 0 ; i < length ; i++) {
             _registerPair(_factory, pairAddress[i], true);
@@ -168,7 +168,7 @@ contract OSWAP_HybridRouterRegistry is Ownable, IOSWAP_HybridRouterRegistry, IOA
         uint256 length = pairAddress.length;
         require(length == _factory.length, "array length not match");
         for (uint256 i = 0 ; i < length ; i++) {
-            require(protocols[_factory[i]].typeCode != 3, "Protocol not regconized");
+            require(protocols[_factory[i]].typeCode > 0 && protocols[_factory[i]].typeCode != 3, "Protocol not regconized");
             _registerPair(_factory[i], pairAddress[i], true);
         }
     }
