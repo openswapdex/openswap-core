@@ -155,13 +155,13 @@ contract OSWAP_HybridRouterRegistry is Ownable, IOSWAP_HybridRouterRegistry, IOA
     }
     function registerPairByAddress(address _factory, address pairAddress) external override {
         require(protocols[_factory].typeCode != 3, "Protocol not regconized");
-        _registerPair(_factory, pairAddress);
+        _registerPair(_factory, pairAddress, true);
     }
     function registerPairsByAddress(address _factory, address[] memory pairAddress) external override {
         require(protocols[_factory].typeCode != 3, "Protocol not regconized");
         uint256 length = pairAddress.length;
         for (uint256 i = 0 ; i < length ; i++) {
-            _registerPair(_factory, pairAddress[i]);
+            _registerPair(_factory, pairAddress[i], true);
         }
     }
     function registerPairsByAddress2(address[] memory _factory, address[] memory pairAddress) external override {
@@ -169,15 +169,22 @@ contract OSWAP_HybridRouterRegistry is Ownable, IOSWAP_HybridRouterRegistry, IOA
         require(length == _factory.length, "array length not match");
         for (uint256 i = 0 ; i < length ; i++) {
             require(protocols[_factory[i]].typeCode != 3, "Protocol not regconized");
-            _registerPair(_factory[i], pairAddress[i]);
+            _registerPair(_factory[i], pairAddress[i], true);
         }
     }
 
     function _registerPair(address _factory, address pairAddress) internal {
+        _registerPair(_factory, pairAddress, false);
+    }
+    function _registerPair(address _factory, address pairAddress, bool checkPairAddress) internal {
         require(pairAddress > address(0), "Invalid pair address/Pair not found");
         address token0 = IPair(pairAddress).token0();
         address token1 = IPair(pairAddress).token1();
         require(token0 < token1, "Invalid tokens order");
+        if (checkPairAddress) {
+            address _pairAddress = IFactory(_factory).getPair(token0, token1);
+            require(pairAddress == _pairAddress, "invalid pair");
+        }
         pairs[pairAddress].factory = _factory;
         pairs[pairAddress].token0 = token0;
         pairs[pairAddress].token1 = token1;
