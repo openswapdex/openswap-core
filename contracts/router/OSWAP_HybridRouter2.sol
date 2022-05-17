@@ -55,7 +55,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         require(msg.sender == WETH, 'TRANSFER_FAILED'); // only accept ETH via fallback from the WETH contract
     }
 
-    function getPathIn(address[] calldata pair, address tokenIn) public override view returns (address[] memory path) {
+    function getPathIn(address[] memory pair, address tokenIn) public override view returns (address[] memory path) {
         uint256 length = pair.length;
         require(length > 0, 'INVALID_PATH');
         path = new address[](length + 1);
@@ -66,7 +66,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
             tokenIn = path[i + 1];
         }
     }
-    function getPathOut(address[] calldata pair, address tokenOut) public override view returns (address[] memory path) {
+    function getPathOut(address[] memory pair, address tokenOut) public override view returns (address[] memory path) {
         uint256 length = pair.length;
         require(length > 0, 'INVALID_PATH');
         path = new address[](length + 1);
@@ -89,7 +89,8 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
     
     // **** SWAP ****
     // requires the initial amount to have already been sent to the first pair
-    function _swap(uint[] memory amounts, address[] memory path, address _to, address[] memory pair, bytes[] memory dataChunks) internal virtual {
+    function _swap(uint[] memory amounts, address[] memory path, address _to, address[] memory pair, bytes[] memory dataChunks, uint256 amountOutMin) internal virtual {
+        uint balanceBefore = IERC20(path[path.length - 1]).balanceOf(_to);
         for (uint i; i < path.length - 1; i++) {
             bool direction;
             {
@@ -119,15 +120,19 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
                 );                
             }
         }
+        require(
+            IERC20(path[path.length - 1]).balanceOf(_to).sub(balanceBefore) >= amountOutMin,
+            'HybridRouter: INSUFFICIENT_OUTPUT_AMOUNT'
+        );
     }
     function swapExactTokensForTokens(
         uint amountIn,
         uint amountOutMin,
-        address[] calldata pair,
+        address[] memory pair,
         address tokenIn,
         address to,
         uint deadline,
-        bytes calldata data
+        bytes memory data
     ) external virtual override ensure(deadline) returns (address[] memory path, uint[] memory amounts) {
         path = getPathIn(pair, tokenIn);
         bytes[] memory dataChunks;
@@ -136,27 +141,28 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         TransferHelper.safeTransferFrom(
             path[0], msg.sender, pair[0], amounts[0]
         );
-        _swap(amounts, path, to, pair, dataChunks);
+        _swap(amounts, path, to, pair, dataChunks, amountOutMin);
     }
     function swapTokensForExactTokens(
         uint amountOut,
         uint amountInMax,
-        address[] calldata pair,
+        address[] memory pair,
         address tokenOut,
         address to,
         uint deadline,
-        bytes calldata data
+        bytes memory data
     ) external virtual override ensure(deadline) returns (address[] memory path, uint[] memory amounts) {
         path = getPathOut(pair, tokenOut);
         bytes[] memory dataChunks;
         (amounts, dataChunks) = getAmountsIn(amountOut, path, pair, data);
+        uint256 _amountOut = amountOut;
         require(amounts[0] <= amountInMax, 'HybridRouter: EXCESSIVE_INPUT_AMOUNT');
         TransferHelper.safeTransferFrom(
             path[0], msg.sender, pair[0], amounts[0]
         );
-        _swap(amounts, path, to, pair, dataChunks);
+        _swap(amounts, path, to, pair, dataChunks, _amountOut);
     }
-    function swapExactETHForTokens(uint amountOutMin, address[] calldata pair, address to, uint deadline, bytes calldata data)
+    function swapExactETHForTokens(uint amountOutMin, address[] memory pair, address to, uint deadline, bytes memory data)
         external
         virtual
         override
@@ -170,9 +176,9 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         require(amounts[amounts.length - 1] >= amountOutMin, 'HybridRouter: INSUFFICIENT_OUTPUT_AMOUNT');
         IWETH(WETH).deposit{value: amounts[0]}();
         require(IWETH(WETH).transfer(pair[0], amounts[0]), 'TRANSFER_FAILED');
-        _swap(amounts, path, to, pair, dataChunks);
+        _swap(amounts, path, to, pair, dataChunks, amountOutMin);
     }
-    function swapTokensForExactETH(uint amountOut, uint amountInMax, address[] calldata pair, address to, uint deadline, bytes calldata data)
+    function swapTokensForExactETH(uint amountOut, uint amountInMax, address[] memory pair, address to, uint deadline, bytes memory data)
         external
         virtual
         override
@@ -186,11 +192,11 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         TransferHelper.safeTransferFrom(
             path[0], msg.sender, pair[0], amounts[0]
         );
-        _swap(amounts, path, address(this), pair, dataChunks);
+        _swap(amounts, path, address(this), pair, dataChunks, amountOut);
         IWETH(WETH).withdraw(amounts[amounts.length - 1]);
         TransferHelper.safeTransferETH(to, amounts[amounts.length - 1]);
     }
-    function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata pair, address to, uint deadline, bytes calldata data)
+    function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] memory pair, address to, uint deadline, bytes memory data)
         external
         virtual
         override
@@ -204,11 +210,11 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         TransferHelper.safeTransferFrom(
             path[0], msg.sender, pair[0], amounts[0]
         );
-        _swap(amounts, path, address(this), pair, dataChunks);
+        _swap(amounts, path, address(this), pair, dataChunks, amountOutMin);
         IWETH(WETH).withdraw(amounts[amounts.length - 1]);
         TransferHelper.safeTransferETH(to, amounts[amounts.length - 1]);
     }
-    function swapETHForExactTokens(uint amountOut, address[] calldata pair, address to, uint deadline, bytes calldata data)
+    function swapETHForExactTokens(uint amountOut, address[] memory pair, address to, uint deadline, bytes memory data)
         external
         virtual
         override
@@ -222,7 +228,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         require(amounts[0] <= msg.value, 'HybridRouter: EXCESSIVE_INPUT_AMOUNT');
         IWETH(WETH).deposit{value: amounts[0]}();
         require(IWETH(WETH).transfer(pair[0], amounts[0]), 'TRANSFER_FAILED');
-        _swap(amounts, path, to, pair, dataChunks);
+        _swap(amounts, path, to, pair, dataChunks, amountOut);
         // refund dust eth, if any
         if (msg.value > amounts[0]) TransferHelper.safeTransferETH(msg.sender, msg.value - amounts[0]);
     }
@@ -410,7 +416,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
         }
     }
 
-    function getAmountsOut(uint amountIn, address[] memory path, address[] calldata pair, bytes calldata data)
+    function getAmountsOut(uint amountIn, address[] memory path, address[] memory pair, bytes memory data)
         internal
         view
         virtual
@@ -438,7 +444,7 @@ contract OSWAP_HybridRouter2 is IOSWAP_HybridRouter2 {
             }
         }
     }
-    function getAmountsIn(uint amountOut, address[] memory path, address[] calldata pair, bytes calldata data)
+    function getAmountsIn(uint amountOut, address[] memory path, address[] memory pair, bytes memory data)
         internal
         view
         virtual
