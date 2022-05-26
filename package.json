@@ -1,5 +1,5 @@
 {
-  "name": "@openswapdex/openswap-core",
+  "name": "@openswap/openswap-core",
   "version": "0.1.2",
   "description": "Openswap Core Contracts"
 }
