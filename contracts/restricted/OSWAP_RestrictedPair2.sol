@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity =0.6.11;
 
-import './interfaces/IOSWAP_RestrictedPair3.sol';
+import './interfaces/IOSWAP_RestrictedPair2.sol';
 import '../interfaces/IERC20.sol';
 import '../libraries/SafeMath.sol';
 import '../libraries/Address.sol';
@@ -12,7 +12,7 @@ import './interfaces/IOSWAP_ConfigStore.sol';
 import '../oracle/interfaces/IOSWAP_OracleAdaptor2.sol';
 import '../commons/OSWAP_PausablePair.sol';
 
-contract OSWAP_RestrictedPair2 is IOSWAP_RestrictedPair3, OSWAP_PausablePair {
+contract OSWAP_RestrictedPair2 is IOSWAP_RestrictedPair2, OSWAP_PausablePair {
     using SafeMath for uint256;
 
     uint256 constant FEE_BASE = 10 ** 5;

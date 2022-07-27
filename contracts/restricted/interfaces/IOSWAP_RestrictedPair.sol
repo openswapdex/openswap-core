@@ -17,9 +17,9 @@ interface IOSWAP_RestrictedPair is IOSWAP_PausablePair {
     } 
 
     event NewProviderOffer(address indexed provider, bool indexed direction, uint256 index, bool allowAll, uint256 restrictedPrice, uint256 startDate, uint256 expire);
-    event AddLiquidity(address indexed provider, bool indexed direction, uint256 indexed index, uint256 amount, uint256 newAmountBalance);
+    // event AddLiquidity(address indexed provider, bool indexed direction, uint256 indexed index, uint256 amount, uint256 newAmountBalance);
     event Lock(bool indexed direction, uint256 indexed index);
-    event RemoveLiquidity(address indexed provider, bool indexed direction, uint256 indexed index, uint256 amountOut, uint256 receivingOut, uint256 newAmountBalance, uint256 newReceivingBalance);
+    // event RemoveLiquidity(address indexed provider, bool indexed direction, uint256 indexed index, uint256 amountOut, uint256 receivingOut, uint256 newAmountBalance, uint256 newReceivingBalance);
     event Swap(address indexed to, bool indexed direction, uint256 amountIn, uint256 amountOut, uint256 tradeFee, uint256 protocolFee);
     event SwappedOneOffer(address indexed provider, bool indexed direction, uint256 indexed index, uint256 price, uint256 amountOut, uint256 amountIn, uint256 newAmountBalance, uint256 newReceivingBalance);
 
@@ -41,6 +41,7 @@ interface IOSWAP_RestrictedPair is IOSWAP_PausablePair {
     function approvedTrader(bool direction, uint256 offerIndex, uint256 i) external view returns (address trader);
     function isApprovedTrader(bool direction, uint256 offerIndex, address trader) external view returns (bool);
     function traderAllocation(bool direction, uint256 offerIndex, address trader) external view returns (uint256 amount);
+    function traderOffer(bool direction, address trader, uint256 i) external view returns (uint256 index);
 
     function governance() external view returns (address);
     function whitelistFactory() external view returns (address);
@@ -76,14 +77,14 @@ interface IOSWAP_RestrictedPair is IOSWAP_PausablePair {
     function getAmountIn(address tokenOut, uint256 amountOut, address trader, bytes calldata data) external view returns (uint256 amountIn);
 
     function createOrder(address provider, bool direction, bool allowAll, uint256 restrictedPrice, uint256 startDate, uint256 expire) external returns (uint256 index);
-    function addLiquidity(bool direction, uint256 index) external;
+    // function addLiquidity(bool direction, uint256 index) external;
     function lockOffer(bool direction, uint256 index) external;
-    function removeLiquidity(address provider, bool direction, uint256 index, uint256 amountOut, uint256 receivingOut) external;
-    function removeAllLiquidity(address provider) external returns (uint256 amount0, uint256 amount1);
-    function removeAllLiquidity1D(address provider, bool direction) external returns (uint256 totalAmount, uint256 totalReceiving);
+    // function removeLiquidity(address provider, bool direction, uint256 index, uint256 amountOut, uint256 receivingOut) external;
+    // function removeAllLiquidity(address provider) external returns (uint256 amount0, uint256 amount1);
+    // function removeAllLiquidity1D(address provider, bool direction) external returns (uint256 totalAmount, uint256 totalReceiving);
 
-    function setApprovedTrader(bool direction, uint256 offerIndex, address trader, uint256 allocation) external;
-    function setMultipleApprovedTraders(bool direction, uint256 offerIndex, address[] calldata trader, uint256[] calldata allocation) external;
+    // function setApprovedTrader(bool direction, uint256 offerIndex, address trader, uint256 allocation) external;
+    // function setMultipleApprovedTraders(bool direction, uint256 offerIndex, address[] calldata trader, uint256[] calldata allocation) external;
 
     function swap(uint256 amount0Out, uint256 amount1Out, address to, address trader, bytes calldata data) external;
 

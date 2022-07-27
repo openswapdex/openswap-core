@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity =0.6.11;
 
-import './interfaces/IOSWAP_RestrictedLiquidityProvider.sol';
-import './interfaces/IOSWAP_RestrictedPair.sol';
+import './interfaces/IOSWAP_RestrictedLiquidityProvider4.sol';
+import './interfaces/IOSWAP_RestrictedPair4.sol';
 import './interfaces/IOSWAP_RestrictedFactory.sol';
 import '../gov/interfaces/IOAXDEX_Governance.sol';
 import '../libraries/TransferHelper.sol';
 import '../libraries/SafeMath.sol';
 import '../interfaces/IWETH.sol';
 import './interfaces/IOSWAP_ConfigStore.sol';
+import './OSWAP_RestrictedLiquidityProvider.sol';
 
-contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider {
+contract OSWAP_RestrictedLiquidityProvider4 is IOSWAP_RestrictedLiquidityProvider4 {
     using SafeMath for uint256;
+
+    uint256 constant BOTTOM_HALF = 0xffffffffffffffffffffffffffffffff;
 
     bytes32 constant FEE_PER_ORDER = "RestrictedPair.feePerOrder";
     bytes32 constant FEE_PER_TRADER = "RestrictedPair.feePerTrader";
@@ -63,57 +66,63 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
         address tokenA,
         address tokenB,
         bool addingTokenA,
-        uint256 pairIndex,
-        uint256 offerIndex,
+        uint256 pairIndexAndOfferIndex,
+        // uint256 offerIndex,
         uint256 amountIn,
         bool allowAll,
         uint256 restrictedPrice,
-        uint256 startDate,
-        uint256 expire,
+        uint256 startDateAndExpire,
+        // uint256 expire,
+        bytes32 merkleRoot,
+        uint256 feeIn,
         uint256 deadline
     ) public virtual override ensure(deadline) returns (address pair, uint256 _offerIndex) {
-        pair = _getPair(tokenA, tokenB, pairIndex);
+        pair = _getPair(tokenA, tokenB, pairIndexAndOfferIndex >> 32);
+
+        _offerIndex = pairIndexAndOfferIndex & BOTTOM_HALF;
 
         bool direction = (tokenA < tokenB) ? !addingTokenA : addingTokenA;
 
-        if (offerIndex == 0) {
-            uint256 feeIn = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_ORDER));
+        if (_offerIndex == 0) {
             TransferHelper.safeTransferFrom(govToken, msg.sender, pair, feeIn);
-            offerIndex = IOSWAP_RestrictedPair(pair).createOrder(msg.sender, direction, allowAll, restrictedPrice, startDate, expire);
+            _offerIndex = IOSWAP_RestrictedPair4(pair).createOrder(msg.sender, direction, allowAll, restrictedPrice, startDateAndExpire >> 32, startDateAndExpire & BOTTOM_HALF);
         } else {
-            _checkOrder(pair, direction, offerIndex, allowAll, restrictedPrice, startDate, expire);
+            _checkOrder(pair, direction, _offerIndex, allowAll, restrictedPrice, startDateAndExpire >> 32, startDateAndExpire & BOTTOM_HALF);
         }
+        IOSWAP_RestrictedPair4(pair).setMerkleRoot(direction, _offerIndex, merkleRoot);
 
         if (amountIn > 0) {
             TransferHelper.safeTransferFrom(addingTokenA ? tokenA : tokenB, msg.sender, pair, amountIn);
-            IOSWAP_RestrictedPair(pair).addLiquidity(direction, offerIndex);
+            IOSWAP_RestrictedPair4(pair).addLiquidity(direction, _offerIndex, feeIn);
         }
-
-        _offerIndex = offerIndex;
     }
     function addLiquidityETH(
         address tokenA,
         bool addingTokenA,
-        uint256 pairIndex,
-        uint256 offerIndex,
+        uint256 pairIndexAndOfferIndex,
+        // uint256 offerIndex,
         uint256 amountAIn,
         bool allowAll,
         uint256 restrictedPrice,
-        uint256 startDate,
-        uint256 expire,
+        uint256 startDateAndExpire,
+        // uint256 expire,
+        bytes32 merkleRoot,
+        uint256 feeIn,
         uint256 deadline
     ) public virtual override payable ensure(deadline) returns (/*bool direction, */address pair, uint256 _offerIndex) {
-        pair = _getPair(tokenA, WETH, pairIndex);
+        pair = _getPair(tokenA, WETH, pairIndexAndOfferIndex);
+
+        _offerIndex = pairIndexAndOfferIndex & BOTTOM_HALF;
 
         bool direction = (tokenA < WETH) ? !addingTokenA : addingTokenA;
 
-        if (offerIndex == 0) {
-            uint256 feeIn = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_ORDER));
+        if (_offerIndex == 0) {
             TransferHelper.safeTransferFrom(govToken, msg.sender, pair, feeIn);
-            offerIndex = IOSWAP_RestrictedPair(pair).createOrder(msg.sender, direction, allowAll, restrictedPrice, startDate, expire);
+            _offerIndex = IOSWAP_RestrictedPair4(pair).createOrder(msg.sender, direction, allowAll, restrictedPrice, startDateAndExpire >> 32, startDateAndExpire & BOTTOM_HALF);
         } else {
-            _checkOrder(pair, direction, offerIndex, allowAll, restrictedPrice, startDate, expire);
+            _checkOrder(pair, direction, _offerIndex, allowAll, restrictedPrice, startDateAndExpire >> 32, startDateAndExpire & BOTTOM_HALF);
         }
+        IOSWAP_RestrictedPair4(pair).setMerkleRoot(direction, _offerIndex, merkleRoot);
 
         if (addingTokenA) {
             if (amountAIn > 0)
@@ -124,77 +133,7 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
             require(IWETH(WETH).transfer(pair, ETHIn), 'Transfer failed');
         }
         if (amountAIn > 0 || msg.value > 0)
-            IOSWAP_RestrictedPair(pair).addLiquidity(direction, offerIndex);
-
-        _offerIndex = offerIndex;
-    }
-
-    function _addLiquidity(address tokenA, address tokenB, bool addingTokenA, uint256[11] calldata param) internal virtual 
-        returns (address pair, uint256 offerIndex) 
-    {
-        (pair, offerIndex) = addLiquidity(
-            tokenA,
-            tokenB,
-            addingTokenA,
-            param[3],
-            param[4],
-            param[5],
-            param[6]==1,
-            param[7],
-            param[8],
-            param[9],
-            param[10]
-        );
-    }
-    function addLiquidityAndTrader(
-        uint256[11] calldata param, 
-        address[] calldata trader, 
-        uint256[] calldata allocation
-    ) external virtual override 
-        returns (address pair, uint256 offerIndex) 
-    {
-        require(param.length == 11, "Invalid param length");
-        address tokenA = address(bytes20(bytes32(param[0]<<96)));
-        address tokenB = address(bytes20(bytes32(param[1]<<96)));
-        bool b = param[2]==1; // addingTokenA
-        (pair, offerIndex) = _addLiquidity(tokenA, tokenB, b, param);
-        b = (tokenA < tokenB) ? !b : b; // direction
-        
-        uint256 feePerTrader = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_TRADER));
-        TransferHelper.safeTransferFrom(govToken, msg.sender, pair, feePerTrader.mul(trader.length));
-        IOSWAP_RestrictedPair(pair).setMultipleApprovedTraders(b, offerIndex, trader, allocation);
-    }
-    function _addLiquidityETH(address tokenA, bool addingTokenA, uint256[10] calldata param) internal virtual
-        returns (address pair, uint256 offerIndex) 
-    {
-        (pair, offerIndex) = addLiquidityETH(
-            tokenA,
-            addingTokenA,
-            param[2],
-            param[3],
-            param[4],
-            param[5]==1,
-            param[6],
-            param[7],
-            param[8],
-            param[9]
-        );
-    }
-    function addLiquidityETHAndTrader(
-        uint256[10] calldata param, 
-        address[] calldata trader, 
-        uint256[] calldata allocation
-    ) external virtual override payable 
-        returns (address pair, uint256 offerIndex) 
-    {
-        require(param.length == 10, "Invalid param length");
-        address tokenA = address(bytes20(bytes32(param[0]<<96)));
-        bool b = param[1]==1; // addingTokenA
-        (pair, offerIndex) = _addLiquidityETH(tokenA, b, param);
-        b = (tokenA < WETH) ? !b : b; // direction
-        uint256 feePerTrader = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_TRADER));
-        TransferHelper.safeTransferFrom(govToken, msg.sender, pair, feePerTrader.mul(trader.length));
-        IOSWAP_RestrictedPair(pair).setMultipleApprovedTraders(b, offerIndex, trader, allocation);
+            IOSWAP_RestrictedPair4(pair).addLiquidity(direction, _offerIndex, feeIn);
     }
 
     // **** REMOVE LIQUIDITY ****
@@ -207,11 +146,12 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
         uint256 offerIndex,
         uint256 amountOut,
         uint256 receivingOut,
+        uint256 feeOut,
         uint256 deadline
     ) public virtual override ensure(deadline) {
         address pair = pairFor(tokenA, tokenB, pairIndex);
         bool direction = (tokenA < tokenB) ? !removingTokenA : removingTokenA;
-        IOSWAP_RestrictedPair(pair).removeLiquidity(msg.sender, direction, offerIndex, amountOut, receivingOut);
+        IOSWAP_RestrictedPair4(pair).removeLiquidity(msg.sender, direction, offerIndex, amountOut, receivingOut, feeOut);
 
         (uint256 tokenAOut, uint256 tokenBOut) = removingTokenA ? (amountOut, receivingOut) : (receivingOut, amountOut);
         if (tokenAOut > 0) {
@@ -229,11 +169,12 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
         uint256 offerIndex,
         uint256 amountOut,
         uint256 receivingOut,
+        uint256 feeOut,
         uint256 deadline
     ) public virtual override ensure(deadline) {
         address pair = pairFor(tokenA, WETH, pairIndex);
         bool direction = (tokenA < WETH) ? !removingTokenA : removingTokenA;
-        IOSWAP_RestrictedPair(pair).removeLiquidity(msg.sender, direction, offerIndex, amountOut, receivingOut);
+        IOSWAP_RestrictedPair4(pair).removeLiquidity(msg.sender, direction, offerIndex, amountOut, receivingOut, feeOut);
 
         (uint256 tokenOut, uint256 ethOut) = removingTokenA ? (amountOut, receivingOut) : (receivingOut, amountOut);
 
@@ -251,33 +192,37 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
         address to,
         uint256 pairIndex,
         uint256 deadline
-    ) public virtual override ensure(deadline) returns (uint256 amountA, uint256 amountB) {
+    ) public virtual override ensure(deadline) returns (uint256 amountA, uint256 amountB, uint256 feeOut) {
         address pair = pairFor(tokenA, tokenB, pairIndex);
-        (uint256 amount0, uint256 amount1) = IOSWAP_RestrictedPair(pair).removeAllLiquidity(msg.sender);
-        // (uint256 amount0, uint256 amount1) = IOSWAP_RestrictedPair(pair).removeAllLiquidity1D(msg.sender, false);
-        // (uint256 amount2, uint256 amount3) = IOSWAP_RestrictedPair(pair).removeAllLiquidity1D(msg.sender, true);
+        (uint256 amount0, uint256 amount1, uint256 _feeOut) = IOSWAP_RestrictedPair4(pair).removeAllLiquidity(msg.sender);
+        // (uint256 amount0, uint256 amount1) = IOSWAP_RestrictedPair4(pair).removeAllLiquidity1D(msg.sender, false);
+        // (uint256 amount2, uint256 amount3) = IOSWAP_RestrictedPair4(pair).removeAllLiquidity1D(msg.sender, true);
         // amount0 = amount0.add(amount3);
         // amount1 = amount1.add(amount2);
         (amountA, amountB) = (tokenA < tokenB) ? (amount0, amount1) : (amount1, amount0);
+        feeOut = _feeOut;
         TransferHelper.safeTransfer(tokenA, to, amountA);
         TransferHelper.safeTransfer(tokenB, to, amountB);
+        TransferHelper.safeTransfer(govToken, to, feeOut);
     }
     function removeAllLiquidityETH(
         address tokenA,
         address to, 
         uint256 pairIndex,
         uint256 deadline
-    ) public virtual override ensure(deadline) returns (uint256 amountToken, uint256 amountETH) {
+    ) public virtual override ensure(deadline) returns (uint256 amountToken, uint256 amountETH, uint256 feeOut) {
         address pair = pairFor(tokenA, WETH, pairIndex);
-        (uint256 amount0, uint256 amount1) = IOSWAP_RestrictedPair(pair).removeAllLiquidity(msg.sender);
-        // (uint256 amount0, uint256 amount1) = IOSWAP_RestrictedPair(pair).removeAllLiquidity1D(msg.sender, false);
-        // (uint256 amount2, uint256 amount3) = IOSWAP_RestrictedPair(pair).removeAllLiquidity1D(msg.sender, true);
+        (uint256 amount0, uint256 amount1, uint256 _feeOut) = IOSWAP_RestrictedPair4(pair).removeAllLiquidity(msg.sender);
+        // (uint256 amount0, uint256 amount1) = IOSWAP_RestrictedPair4(pair).removeAllLiquidity1D(msg.sender, false);
+        // (uint256 amount2, uint256 amount3) = IOSWAP_RestrictedPair4(pair).removeAllLiquidity1D(msg.sender, true);
         // amount0 = amount0.add(amount3);
         // amount1 = amount1.add(amount2);
         (amountToken, amountETH) = (tokenA < WETH) ? (amount0, amount1) : (amount1, amount0);
+        feeOut = _feeOut;
         TransferHelper.safeTransfer(tokenA, to, amountToken);
         IWETH(WETH).withdraw(amountETH);
         TransferHelper.safeTransferETH(to, amountETH);
+        TransferHelper.safeTransfer(govToken, to, feeOut);
     }
 
     // **** LIBRARY FUNCTIONS ****
@@ -298,5 +243,4 @@ contract OSWAP_RestrictedLiquidityProvider is IOSWAP_RestrictedLiquidityProvider
                 /*restricted*/hex'c4a48a7bad5b49d5e0b31255280c8d6334bb6304569ebe7486ba297c1931e97c' // restricted init code hash
             ))));
     }
-
 }
