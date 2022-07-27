@@ -9,7 +9,6 @@ import '../libraries/TransferHelper.sol';
 import '../libraries/SafeMath.sol';
 import '../interfaces/IWETH.sol';
 import './interfaces/IOSWAP_ConfigStore.sol';
-import './OSWAP_RestrictedLiquidityProvider.sol';
 
 contract OSWAP_RestrictedLiquidityProvider4 is IOSWAP_RestrictedLiquidityProvider4 {
     using SafeMath for uint256;

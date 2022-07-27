@@ -9,10 +9,9 @@ import '../libraries/TransferHelper.sol';
 import '../libraries/SafeMath.sol';
 import '../interfaces/IWETH.sol';
 import './interfaces/IOSWAP_ConfigStore.sol';
-import './OSWAP_RestrictedLiquidityProvider.sol';
 
 contract OSWAP_RestrictedLiquidityProvider1 is IOSWAP_RestrictedLiquidityProvider1 {
-        using SafeMath for uint256;
+    using SafeMath for uint256;
 
     bytes32 constant FEE_PER_ORDER = "RestrictedPair.feePerOrder";
     bytes32 constant FEE_PER_TRADER = "RestrictedPair.feePerTrader";
