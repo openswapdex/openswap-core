@@ -8,6 +8,8 @@ import './OSWAP_RestrictedPairPrepaidFee.sol';
 // traders set their own allocation from signature obtained from liquidity provider
 contract OSWAP_RestrictedPair3 is IOSWAP_RestrictedPair3, OSWAP_RestrictedPairPrepaidFee {
 
+    mapping(bool => mapping(uint256 => mapping(address => bool))) public override allocationSet;
+
     function _recoverSigner(bytes32 hash, bytes memory signature) private pure returns (address) {
         bytes32 r;
         bytes32 s;
@@ -32,7 +34,8 @@ contract OSWAP_RestrictedPair3 is IOSWAP_RestrictedPair3, OSWAP_RestrictedPairPr
         }
     }
     function setApprovedTraderBySignature(bool direction, uint256 offerIndex, address trader, uint256 allocation, bytes calldata signature) external override {
-        require(traderAllocation[direction][offerIndex][trader] == 0, "already set");
+        require(!allocationSet[direction][offerIndex][trader], "already set");
+        allocationSet[direction][offerIndex][trader] = true;
 
         address signer = _recoverSigner(keccak256(abi.encodePacked(direction, offerIndex, trader, allocation)), signature);
         require(signer == offers[direction][offerIndex].provider, "invalid signature");

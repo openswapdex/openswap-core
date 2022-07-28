@@ -237,7 +237,7 @@ contract OSWAP_RestrictedLiquidityProvider3 is IOSWAP_RestrictedLiquidityProvide
                 hex'ff',    
                 factory,
                 keccak256(abi.encodePacked(token0, token1, index)),
-                /*restricted*/hex'c4a48a7bad5b49d5e0b31255280c8d6334bb6304569ebe7486ba297c1931e97c' // restricted init code hash
+                /*restricted*/hex'1c864ce614c6760cb999786268e991dca6dd49af663600a07a84a7341dccda4d' // restricted init code hash
             ))));
     }
 }

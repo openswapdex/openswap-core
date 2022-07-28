@@ -9,6 +9,7 @@ import './MerkleProof.sol';
 // traders set their own allocation from merkle tree proof
 contract OSWAP_RestrictedPair4 is IOSWAP_RestrictedPair4, OSWAP_RestrictedPairPrepaidFee {
 
+    mapping(bool => mapping(uint256 => mapping(address => bool))) public override allocationSet;
     mapping(bool => mapping(uint256 => bytes32)) public override offerMerkleRoot;
 
     function setMerkleRoot(bool direction, uint256 index, bytes32 merkleRoot) external override lock {
@@ -19,8 +20,10 @@ contract OSWAP_RestrictedPair4 is IOSWAP_RestrictedPair4, OSWAP_RestrictedPairPr
         emit MerkleRoot(offer.provider, direction, index, merkleRoot);
     }
     function setApprovedTraderByMerkleProof(bool direction, uint256 offerIndex, address trader, uint256 allocation, bytes32[] calldata proof) external override {
-        require(traderAllocation[direction][offerIndex][trader] == 0, "already set");
         require(offerMerkleRoot[direction][offerIndex] != 0, "merkle root not et");
+        require(!allocationSet[direction][offerIndex][trader], "already set");
+        allocationSet[direction][offerIndex][trader] = true;
+
         require(
             MerkleProof.verify(proof, offerMerkleRoot[direction][offerIndex], keccak256(abi.encodePacked(msg.sender, allocation)))
         , "merkle proof failed");
