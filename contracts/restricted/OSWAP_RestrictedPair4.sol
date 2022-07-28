@@ -13,11 +13,13 @@ contract OSWAP_RestrictedPair4 is IOSWAP_RestrictedPair4, OSWAP_RestrictedPairPr
     mapping(bool => mapping(uint256 => bytes32)) public override offerMerkleRoot;
 
     function setMerkleRoot(bool direction, uint256 index, bytes32 merkleRoot) external override lock {
-        Offer storage offer = offers[direction][index];
-        require(msg.sender == offer.provider, "not from provider");
-        require(!offer.locked, "offer locked");
-        offerMerkleRoot[direction][index] = merkleRoot;
-        emit MerkleRoot(offer.provider, direction, index, merkleRoot);
+        if (merkleRoot != offerMerkleRoot[direction][index]) {
+            Offer storage offer = offers[direction][index];
+            require(msg.sender == restrictedLiquidityProvider || msg.sender == offer.provider, "not from provider");
+            require(!offer.locked, "offer locked");
+            offerMerkleRoot[direction][index] = merkleRoot;
+            emit MerkleRoot(offer.provider, direction, index, merkleRoot);
+        }
     }
     function setApprovedTraderByMerkleProof(bool direction, uint256 offerIndex, address trader, uint256 allocation, bytes32[] calldata proof) external override {
         require(offerMerkleRoot[direction][offerIndex] != 0, "merkle root not et");

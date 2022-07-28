@@ -29,7 +29,7 @@ abstract contract OSWAP_RestrictedPairPrepaidFee is IOSWAP_RestrictedPairPrepaid
             if (govToken == token0)
                 amountIn = amountIn.sub(feeIn);
         }
-        require(amountIn > 0, "No amount in");
+        require(amountIn > 0 || feeIn > 0, "No amount in");
 
         offer.amount = offer.amount.add(amountIn);
 
