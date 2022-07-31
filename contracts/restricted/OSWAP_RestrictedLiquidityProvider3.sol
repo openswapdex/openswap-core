@@ -80,7 +80,9 @@ contract OSWAP_RestrictedLiquidityProvider3 is IOSWAP_RestrictedLiquidityProvide
         bool direction = (tokenA < tokenB) ? !addingTokenA : addingTokenA;
 
         if (offerIndex == 0) {
-            TransferHelper.safeTransferFrom(govToken, msg.sender, pair, feeIn);
+            uint256 perOrderFee = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_ORDER));
+            TransferHelper.safeTransferFrom(govToken, msg.sender, pair, perOrderFee);
+            feeIn = feeIn.sub(perOrderFee);
             offerIndex = IOSWAP_RestrictedPair3(pair).createOrder(msg.sender, direction, allowAll, restrictedPrice, startDateAndExpire >> 32, startDateAndExpire & BOTTOM_HALF);
         } else {
             _checkOrder(pair, direction, offerIndex, allowAll, restrictedPrice, startDateAndExpire >> 32, startDateAndExpire & BOTTOM_HALF);

@@ -83,7 +83,11 @@ contract OSWAP_RestrictedLiquidityProvider4 is IOSWAP_RestrictedLiquidityProvide
         bool direction = (tokenA < tokenB) ? !addingTokenA : addingTokenA;
 
         if (_offerIndex == 0) {
-            TransferHelper.safeTransferFrom(govToken, msg.sender, pair, feeIn);
+            {
+            uint256 perOrderFee = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_ORDER));
+            TransferHelper.safeTransferFrom(govToken, msg.sender, pair, perOrderFee);
+            feeIn = feeIn.sub(perOrderFee);
+            }
             _offerIndex = IOSWAP_RestrictedPair4(pair).createOrder(msg.sender, direction, allowAll, restrictedPrice, startDateAndExpire >> 32, startDateAndExpire & BOTTOM_HALF);
         } else {
             _checkOrder(pair, direction, _offerIndex, allowAll, restrictedPrice, startDateAndExpire >> 32, startDateAndExpire & BOTTOM_HALF);
@@ -256,7 +260,7 @@ contract OSWAP_RestrictedLiquidityProvider4 is IOSWAP_RestrictedLiquidityProvide
                 hex'ff',    
                 factory,
                 keccak256(abi.encodePacked(token0, token1, index)),
-                /*restricted*/hex'1ef250e701aa81887eb2e3b1a1f92309c0eabc93a360e6b3aebcb0614e7c603a' // restricted init code hash
+                /*restricted*/hex'b04fc66bf7e5e5611c77964eb923e663f335b5b050d94330fcd913a66db1a1da' // restricted init code hash
             ))));
     }
 }
