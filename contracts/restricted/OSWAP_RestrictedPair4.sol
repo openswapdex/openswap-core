@@ -9,7 +9,7 @@ import './MerkleProof.sol';
 // traders set their own allocation from merkle tree proof
 contract OSWAP_RestrictedPair4 is IOSWAP_RestrictedPair4, OSWAP_RestrictedPairPrepaidFee {
 
-    mapping(bool => mapping(uint256 => mapping(address => bool))) public override allocationSet;
+    mapping(bool => mapping(uint256 => mapping(address => uint256))) public override lastTraderAllocation;
     mapping(bool => mapping(uint256 => bytes32)) public override offerMerkleRoot;
     mapping(bool => mapping(uint256 => string)) public override offerAllowlistIpfsCid;
 
@@ -24,20 +24,21 @@ contract OSWAP_RestrictedPair4 is IOSWAP_RestrictedPair4, OSWAP_RestrictedPairPr
         }
     }
     function setApprovedTraderByMerkleProof(bool direction, uint256 offerIndex, address trader, uint256 allocation, bytes32[] calldata proof) external override {
-        require(offerMerkleRoot[direction][offerIndex] != 0, "merkle root not et");
-        require(!allocationSet[direction][offerIndex][trader], "already set");
-        allocationSet[direction][offerIndex][trader] = true;
-
+        require(offerMerkleRoot[direction][offerIndex] != 0, "merkle root not set");
         require(
             MerkleProof.verifyCalldata(proof, offerMerkleRoot[direction][offerIndex], keccak256(abi.encodePacked(msg.sender, allocation)))
         , "merkle proof failed");
+
+        uint256 delta = allocation.sub(lastTraderAllocation[direction][offerIndex][trader], "new allocation smaller than original");
+        lastTraderAllocation[direction][offerIndex][trader] = allocation;
+        uint256 newAllocation = traderAllocation[direction][offerIndex][trader].add(delta);
 
         // collect fee from trader instead of LP
         uint256 fee = uint256(IOSWAP_ConfigStore(configStore).customParam(FEE_PER_TRADER));
         prepaidFeeBalance[direction][offerIndex] = prepaidFeeBalance[direction][offerIndex].sub(fee);
         feeBalance = feeBalance.add(fee);
 
-        _setApprovedTrader(direction, offerIndex, trader, allocation);
+        _setApprovedTrader(direction, offerIndex, trader, newAllocation);
     }
 
 }
