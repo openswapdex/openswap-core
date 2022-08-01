@@ -11,14 +11,16 @@ contract OSWAP_RestrictedPair4 is IOSWAP_RestrictedPair4, OSWAP_RestrictedPairPr
 
     mapping(bool => mapping(uint256 => mapping(address => bool))) public override allocationSet;
     mapping(bool => mapping(uint256 => bytes32)) public override offerMerkleRoot;
+    mapping(bool => mapping(uint256 => string)) public override offerAllowlistIpfsCid;
 
-    function setMerkleRoot(bool direction, uint256 index, bytes32 merkleRoot) external override lock {
+    function setMerkleRoot(bool direction, uint256 index, bytes32 merkleRoot, string calldata ipfsCid) external override lock {
         if (merkleRoot != offerMerkleRoot[direction][index]) {
             Offer storage offer = offers[direction][index];
             require(msg.sender == restrictedLiquidityProvider || msg.sender == offer.provider, "not from provider");
             require(!offer.locked, "offer locked");
             offerMerkleRoot[direction][index] = merkleRoot;
-            emit MerkleRoot(offer.provider, direction, index, merkleRoot);
+            offerAllowlistIpfsCid[direction][index] = ipfsCid;
+            emit MerkleRoot(offer.provider, direction, index, merkleRoot, ipfsCid);
         }
     }
     function setApprovedTraderByMerkleProof(bool direction, uint256 offerIndex, address trader, uint256 allocation, bytes32[] calldata proof) external override {
@@ -27,7 +29,7 @@ contract OSWAP_RestrictedPair4 is IOSWAP_RestrictedPair4, OSWAP_RestrictedPairPr
         allocationSet[direction][offerIndex][trader] = true;
 
         require(
-            MerkleProof.verify(proof, offerMerkleRoot[direction][offerIndex], keccak256(abi.encodePacked(msg.sender, allocation)))
+            MerkleProof.verifyCalldata(proof, offerMerkleRoot[direction][offerIndex], keccak256(abi.encodePacked(msg.sender, allocation)))
         , "merkle proof failed");
 
         // collect fee from trader instead of LP

@@ -61,26 +61,30 @@ contract OSWAP_RestrictedLiquidityProvider4 is IOSWAP_RestrictedLiquidityProvide
         (,,bool _allowAll,,,uint256 _restrictedPrice,uint256 _startDate,uint256 _expire) = IOSWAP_RestrictedPair(pair).offers(direction, offerIndex);
         require(allowAll==_allowAll && restrictedPrice==_restrictedPrice && startDate==_startDate && expire==_expire, "Order params not match");
     }
+    // params:
+    // 0: pairIndex
+    // 1: offerIndex
+    // 2: amountIn
+    // 3: allowAll
+    // 4: restrictedPrice
+    // 5: startDate
+    // 6: expire
+    // 7: feeIn
+    // 8: deadline
     function addLiquidity(
         address tokenA,
         address tokenB,
         bool addingTokenA,
-        uint256 pairIndexAndOfferIndex,
-        // uint256 offerIndex,
-        uint256 amountIn,
-        bool allowAll,
-        uint256 restrictedPrice,
-        uint256 startDateAndExpire,
-        // uint256 expire,
+        uint256[9] calldata params,
         bytes32 merkleRoot,
-        uint256 feeIn,
-        uint256 deadline
-    ) public virtual override ensure(deadline) returns (address pair, uint256 _offerIndex) {
-        pair = _getPair(tokenA, tokenB, pairIndexAndOfferIndex >> 32);
+        string calldata allowlistIpfsCid
+    ) public virtual override ensure(params[8]) returns (address pair, uint256 _offerIndex) {
+        pair = _getPair(tokenA, tokenB, params[0]);
 
-        _offerIndex = pairIndexAndOfferIndex & BOTTOM_HALF;
+        _offerIndex = params[1];
 
         bool direction = (tokenA < tokenB) ? !addingTokenA : addingTokenA;
+        uint256 feeIn = params[7];
 
         if (_offerIndex == 0) {
             {
@@ -88,40 +92,34 @@ contract OSWAP_RestrictedLiquidityProvider4 is IOSWAP_RestrictedLiquidityProvide
             TransferHelper.safeTransferFrom(govToken, msg.sender, pair, perOrderFee);
             feeIn = feeIn.sub(perOrderFee);
             }
-            _offerIndex = IOSWAP_RestrictedPair4(pair).createOrder(msg.sender, direction, allowAll, restrictedPrice, startDateAndExpire >> 32, startDateAndExpire & BOTTOM_HALF);
+            _offerIndex = IOSWAP_RestrictedPair4(pair).createOrder(msg.sender, direction, params[3]!=0, params[4], params[5], params[6]);
         } else {
-            _checkOrder(pair, direction, _offerIndex, allowAll, restrictedPrice, startDateAndExpire >> 32, startDateAndExpire & BOTTOM_HALF);
+            _checkOrder(pair, direction, _offerIndex, params[3]!=0, params[4], params[5], params[6]);
         }
-        IOSWAP_RestrictedPair4(pair).setMerkleRoot(direction, _offerIndex, merkleRoot);
+        IOSWAP_RestrictedPair4(pair).setMerkleRoot(direction, _offerIndex, merkleRoot, allowlistIpfsCid);
 
-        if (amountIn > 0)
-            TransferHelper.safeTransferFrom(addingTokenA ? tokenA : tokenB, msg.sender, pair, amountIn);
+        if (params[2] > 0)
+            TransferHelper.safeTransferFrom(addingTokenA ? tokenA : tokenB, msg.sender, pair, params[2]);
         if (feeIn > 0)
             TransferHelper.safeTransferFrom(govToken, msg.sender, pair, feeIn);
 
-        if (amountIn > 0 || feeIn > 0) {
+        if (params[2] > 0 || feeIn > 0) {
             IOSWAP_RestrictedPair4(pair).addLiquidity(direction, _offerIndex, feeIn);
         }
     }
     function addLiquidityETH(
         address tokenA,
         bool addingTokenA,
-        uint256 pairIndexAndOfferIndex,
-        // uint256 offerIndex,
-        uint256 amountAIn,
-        bool allowAll,
-        uint256 restrictedPrice,
-        uint256 startDateAndExpire,
-        // uint256 expire,
+        uint256[9] calldata params,
         bytes32 merkleRoot,
-        uint256 feeIn,
-        uint256 deadline
-    ) public virtual override payable ensure(deadline) returns (/*bool direction, */address pair, uint256 _offerIndex) {
-        pair = _getPair(tokenA, WETH, pairIndexAndOfferIndex >> 32);
+        string calldata allowlistIpfsCid
+    ) public virtual override payable ensure(params[8]) returns (address pair, uint256 _offerIndex) {
+        pair = _getPair(tokenA, WETH, params[0]);
 
-        _offerIndex = pairIndexAndOfferIndex & BOTTOM_HALF;
+        _offerIndex = params[1];
 
         bool direction = (tokenA < WETH) ? !addingTokenA : addingTokenA;
+        uint256 feeIn = params[7];
 
         if (_offerIndex == 0) {
             {
@@ -129,15 +127,15 @@ contract OSWAP_RestrictedLiquidityProvider4 is IOSWAP_RestrictedLiquidityProvide
             TransferHelper.safeTransferFrom(govToken, msg.sender, pair, perOrderFee);
             feeIn = feeIn.sub(perOrderFee);
             }
-            _offerIndex = IOSWAP_RestrictedPair4(pair).createOrder(msg.sender, direction, allowAll, restrictedPrice, startDateAndExpire >> 32, startDateAndExpire & BOTTOM_HALF);
+            _offerIndex = IOSWAP_RestrictedPair4(pair).createOrder(msg.sender, direction, params[3]!=0, params[4], params[5], params[6]);
         } else {
-            _checkOrder(pair, direction, _offerIndex, allowAll, restrictedPrice, startDateAndExpire >> 32, startDateAndExpire & BOTTOM_HALF);
+            _checkOrder(pair, direction, _offerIndex, params[3]!=0, params[4], params[5], params[6]);
         }
-        IOSWAP_RestrictedPair4(pair).setMerkleRoot(direction, _offerIndex, merkleRoot);
+        IOSWAP_RestrictedPair4(pair).setMerkleRoot(direction, _offerIndex, merkleRoot, allowlistIpfsCid);
 
         if (addingTokenA) {
-            if (amountAIn > 0)
-                TransferHelper.safeTransferFrom(tokenA, msg.sender, pair, amountAIn);
+            if (params[2] > 0)
+                TransferHelper.safeTransferFrom(tokenA, msg.sender, pair, params[2]);
         } else {
             uint256 ETHIn = msg.value;
             IWETH(WETH).deposit{value: ETHIn}();
@@ -146,7 +144,7 @@ contract OSWAP_RestrictedLiquidityProvider4 is IOSWAP_RestrictedLiquidityProvide
         if (feeIn > 0)
             TransferHelper.safeTransferFrom(govToken, msg.sender, pair, feeIn);
 
-        if (amountAIn > 0 || msg.value > 0 || feeIn > 0)
+        if (params[2] > 0 || msg.value > 0 || feeIn > 0)
             IOSWAP_RestrictedPair4(pair).addLiquidity(direction, _offerIndex, feeIn);
     }
 
@@ -260,7 +258,7 @@ contract OSWAP_RestrictedLiquidityProvider4 is IOSWAP_RestrictedLiquidityProvide
                 hex'ff',    
                 factory,
                 keccak256(abi.encodePacked(token0, token1, index)),
-                /*restricted*/hex'b04fc66bf7e5e5611c77964eb923e663f335b5b050d94330fcd913a66db1a1da' // restricted init code hash
+                /*restricted*/hex'5f43d60e9a01107fd2a7a8645f28aa005c0c9d276bf6004de2ef311b598ebf58' // restricted init code hash
             ))));
     }
 }

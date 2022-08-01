@@ -12,30 +12,16 @@ interface IOSWAP_RestrictedLiquidityProvider4 {
         address tokenA,
         address tokenB,
         bool addingTokenA,
-        uint256 pairIndexAndOfferIndex,
-        // uint256 offerIndex,
-        uint256 amountIn,
-        bool locked,
-        uint256 restrictedPrice,
-        uint256 startDateAndExpire,
-        // uint256 expire,
+        uint256[9] calldata params,
         bytes32 merkleRoot,
-        uint feeIn,
-        uint256 deadline
+        string calldata allowlistIpfsCid
     ) external returns (address pair, uint256 _offerIndex);
     function addLiquidityETH(
         address tokenA,
         bool addingTokenA,
-        uint256 pairIndexAndOfferIndex,
-        // uint256 offerIndex,
-        uint256 amountAIn,
-        bool locked,
-        uint256 restrictedPrice,
-        uint256 startDateAndExpire,
-        // uint256 expire,
+        uint256[9] calldata params,
         bytes32 merkleRoot,
-        uint feeIn,
-        uint256 deadline
+        string calldata allowlistIpfsCid
     ) external payable returns (address pair, uint256 _offerIndex);
 
 
